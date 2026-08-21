@@ -1,0 +1,166 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import * as crypto from "crypto";
+import { Order, OrderStatus } from "./entities/order.entity";
+import { OrderItem } from "./entities/order-item.entity";
+import { OrderStatusHistory } from "./entities/order-status-history.entity";
+import { CartItem } from "../cart/entities/cart-item.entity";
+import { CartService } from "../cart/cart.service";
+import { AddressesService } from "../addresses/addresses.service";
+import { CommissionService } from "../commission/commission.service";
+import { OrderErrors } from "../../common/exceptions/business.exception";
+
+/** Valid order fulfillment transitions. DELIVERED and CANCELLED are terminal. */
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PLACED]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
+  [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELLED],
+  [OrderStatus.READY]: [OrderStatus.OUT_FOR_DELIVERY],
+  [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED],
+  [OrderStatus.DELIVERED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
+
+const RELATIONS = { items: true } as const;
+
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order) private readonly ordersRepository: Repository<Order>,
+    private readonly cartService: CartService,
+    private readonly addressesService: AddressesService,
+    private readonly commissionService: CommissionService,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  findAllForCustomer(customerId: string): Promise<Order[]> {
+    return this.ordersRepository.find({ where: { customerId }, relations: RELATIONS, order: { createdAt: "DESC" } });
+  }
+
+  findAllForRestaurant(restaurantId: string): Promise<Order[]> {
+    return this.ordersRepository.find({ where: { restaurantId }, relations: RELATIONS, order: { createdAt: "DESC" } });
+  }
+
+  findAllForAdmin(): Promise<Order[]> {
+    return this.ordersRepository.find({ relations: RELATIONS, order: { createdAt: "DESC" } });
+  }
+
+  async findOneOrThrow(id: string, scope?: { customerId?: string; restaurantId?: string }): Promise<Order> {
+    const order = await this.ordersRepository.findOne({ where: { id, ...scope }, relations: RELATIONS });
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+    return order;
+  }
+
+  async checkout(customerId: string, deliveryAddressId: string): Promise<Order> {
+    const cart = await this.cartService.getCart(customerId);
+    if (cart.items.length === 0 || !cart.restaurantId) {
+      throw OrderErrors.cartEmpty();
+    }
+    if (cart.items.some((item) => !item.isAvailable)) {
+      throw OrderErrors.itemsUnavailable();
+    }
+
+    const address = await this.addressesService.findOneOrThrow(deliveryAddressId, customerId);
+    const commission = await this.commissionService.calculateCommission(cart.restaurantId, Number(cart.subtotal));
+
+    const order = await this.dataSource.transaction(async (manager) => {
+      const created = manager.create(Order, {
+        orderNumber: this.generateOrderNumber(),
+        customerId,
+        restaurantId: cart.restaurantId!,
+        deliveryAddressId: address.id,
+        deliveryReceiverName: address.receiverName,
+        deliveryReceiverPhone: address.receiverPhone,
+        deliveryAddressLine1: address.addressLine1,
+        deliveryAddressLine2: address.addressLine2,
+        deliveryLandmark: address.landmark,
+        deliveryCity: address.city,
+        deliveryState: address.state,
+        deliveryPostalCode: address.postalCode,
+        deliveryCountry: address.country,
+        subtotal: cart.subtotal,
+        commissionAmount: commission.platformAmount.toFixed(2),
+        restaurantPayoutAmount: commission.restaurantAmount.toFixed(2),
+        totalAmount: cart.subtotal, // no delivery fee/discount yet — Delivery + Coupons modules will extend this
+        status: OrderStatus.PLACED,
+      });
+      const savedOrder = await manager.save(created);
+
+      const items = cart.items.map((item) =>
+        manager.create(OrderItem, {
+          orderId: savedOrder.id,
+          productId: item.productId,
+          productName: item.productName,
+          variantId: item.variantId,
+          variantName: item.variantName,
+          addons: item.addons,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+          lineTotal: item.lineTotal,
+        }),
+      );
+      await manager.save(items);
+
+      const history = manager.create(OrderStatusHistory, {
+        orderId: savedOrder.id,
+        fromStatus: null,
+        toStatus: OrderStatus.PLACED,
+        changedByUserId: customerId,
+        reason: null,
+      });
+      await manager.save(history);
+
+      await manager.delete(CartItem, { userId: customerId });
+
+      return savedOrder;
+    });
+
+    return this.findOneOrThrow(order.id);
+  }
+
+  async cancelByCustomer(id: string, customerId: string, reason: string | undefined): Promise<Order> {
+    const order = await this.findOneOrThrow(id, { customerId });
+    if (order.status !== OrderStatus.PLACED) {
+      throw OrderErrors.cannotBeCancelled();
+    }
+    return this.transitionStatus(order, OrderStatus.CANCELLED, customerId, reason ?? "Cancelled by customer");
+  }
+
+  async cancelByRestaurant(id: string, restaurantId: string, reason: string, changedByUserId: string): Promise<Order> {
+    const order = await this.findOneOrThrow(id, { restaurantId });
+    return this.transitionStatus(order, OrderStatus.CANCELLED, changedByUserId, reason);
+  }
+
+  async updateStatusByRestaurant(id: string, restaurantId: string, toStatus: OrderStatus, changedByUserId: string): Promise<Order> {
+    const order = await this.findOneOrThrow(id, { restaurantId });
+    return this.transitionStatus(order, toStatus, changedByUserId, null);
+  }
+
+  private async transitionStatus(order: Order, toStatus: OrderStatus, changedByUserId: string, reason: string | null): Promise<Order> {
+    const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
+    if (!allowed.includes(toStatus)) {
+      throw OrderErrors.invalidStatusTransition(order.status, toStatus);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const fromStatus = order.status;
+      order.status = toStatus;
+      order.cancellationReason = toStatus === OrderStatus.CANCELLED ? reason : order.cancellationReason;
+      await manager.save(order);
+
+      const history = manager.create(OrderStatusHistory, { orderId: order.id, fromStatus, toStatus, changedByUserId, reason });
+      await manager.save(history);
+    });
+
+    return this.findOneOrThrow(order.id);
+  }
+
+  private generateOrderNumber(): string {
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const randomPart = crypto.randomBytes(3).toString("hex").toUpperCase();
+    return `ORD-${datePart}-${randomPart}`;
+  }
+}

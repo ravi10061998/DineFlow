@@ -38,14 +38,20 @@ export interface MenuCategory {
   products: MenuProduct[];
 }
 
+export interface CartLineAddon {
+  id: string;
+  name: string;
+  price: string;
+}
+
 export interface CartLine {
   id: string;
   productId: string;
   productName: string;
   variantId: string | null;
   variantName: string | null;
-  addonIds: string[];
-  addonNames: string[];
+  variantPrice: string | null;
+  addons: CartLineAddon[];
   quantity: number;
   unitPrice: string;
   lineTotal: string;

@@ -1,20 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RequireAuth } from "@/components/require-auth";
 import { Logo } from "@/components/logo";
 import { api } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
 import { getErrorMessage } from "@/lib/errors";
 import type { Cart } from "@/lib/cart-types";
+import type { CustomerAddress } from "@/lib/address-types";
+import type { Order } from "@/lib/order-types";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 
 function CartPageContent() {
+  const router = useRouter();
   const { data: cart, loading, error, reload } = useApiQuery(() => api.get<Cart>("/customer/me/cart"));
+  const { data: addresses, error: addressesError } = useApiQuery(() => api.get<CustomerAddress[]>("/customer/me/addresses"));
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedAddressId && addresses && addresses.length > 0) {
+      setSelectedAddressId(addresses.find((a) => a.isDefault)?.id ?? addresses[0].id);
+    }
+  }, [addresses, selectedAddressId]);
+
+  async function handleCheckout() {
+    if (!selectedAddressId) return;
+    setCheckoutError(null);
+    setCheckingOut(true);
+    try {
+      const result = await api.post<Order>("/customer/me/orders/checkout", { deliveryAddressId: selectedAddressId });
+      router.push(`/orders/${result.id}`);
+    } catch (err) {
+      setCheckoutError(getErrorMessage(err));
+      reload(); // in case the cart changed underneath (e.g. an item became unavailable)
+    } finally {
+      setCheckingOut(false);
+    }
+  }
 
   async function updateQuantity(id: string, quantity: number) {
     setActionError(null);
@@ -88,7 +117,7 @@ function CartPageContent() {
                     <div>
                       <p className={`font-medium ${item.isAvailable ? "text-slate-900" : "text-red-600"}`}>{item.productName}</p>
                       {item.variantName && <p className="text-sm text-slate-500">{item.variantName}</p>}
-                      {item.addonNames.length > 0 && <p className="text-sm text-slate-500">+ {item.addonNames.join(", ")}</p>}
+                      {item.addons.length > 0 && <p className="text-sm text-slate-500">+ {item.addons.map((a) => a.name).join(", ")}</p>}
                       {!item.isAvailable && <p className="text-xs text-red-600">No longer available — please remove this item.</p>}
                       <p className="mt-1 text-sm font-semibold text-slate-700">
                         ₹{item.unitPrice} × {item.quantity} = ₹{item.lineTotal}
@@ -128,12 +157,46 @@ function CartPageContent() {
               <span className="text-lg font-semibold text-slate-900">₹{cart?.subtotal}</span>
             </div>
 
+            <ErrorBanner message={addressesError} />
+            {addresses?.length === 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Add a delivery address in{" "}
+                <Link href="/profile" className="font-medium underline">
+                  your profile
+                </Link>{" "}
+                before checking out.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-4">
+                <label htmlFor="delivery-address" className="text-sm font-medium text-slate-700">
+                  Deliver to
+                </label>
+                <select
+                  id="delivery-address"
+                  value={selectedAddressId}
+                  onChange={(e) => setSelectedAddressId(e.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                >
+                  {addresses?.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} — {a.addressLine1}, {a.city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <ErrorBanner message={checkoutError} />
+
             <div className="flex gap-2">
               <Button variant="secondary" onClick={clearCart}>
                 Clear cart
               </Button>
-              <Button disabled title="Checkout is built in a later module">
-                Checkout (coming soon)
+              <Button
+                loading={checkingOut}
+                disabled={!selectedAddressId || cart?.items.some((i) => !i.isAvailable)}
+                onClick={handleCheckout}
+              >
+                Place order
               </Button>
             </div>
           </div>

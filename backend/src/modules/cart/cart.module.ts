@@ -10,5 +10,7 @@ import { RestaurantsModule } from "../restaurants/restaurants.module";
   imports: [TypeOrmModule.forFeature([CartItem]), ProductsModule, RestaurantsModule],
   controllers: [CartController],
   providers: [CartService],
+  // Exported for Orders' checkout flow to read the validated, live-priced cart it converts.
+  exports: [CartService],
 })
 export class CartModule {}

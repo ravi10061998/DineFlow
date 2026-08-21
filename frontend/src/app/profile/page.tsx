@@ -106,6 +106,9 @@ function ProfilePageContent() {
           <Link href="/cart" className="text-slate-500 hover:text-slate-900">
             My cart
           </Link>
+          <Link href="/orders" className="text-slate-500 hover:text-slate-900">
+            My orders
+          </Link>
           <button onClick={() => logout()} className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50">
             Sign out
           </button>

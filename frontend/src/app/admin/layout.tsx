@@ -5,6 +5,7 @@ import { PortalNav } from "@/components/portal-nav";
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/restaurants", label: "Restaurants" },
+  { href: "/admin/orders", label: "Orders" },
   { href: "/admin/subscription-plans", label: "Subscription Plans" },
   { href: "/admin/roles", label: "Roles & Permissions" },
 ];

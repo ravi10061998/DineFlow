@@ -8,14 +8,20 @@ import { RestaurantsService } from "../restaurants/restaurants.service";
 import { Product } from "../products/entities/product.entity";
 import { CartErrors } from "../../common/exceptions/business.exception";
 
+export interface CartLineAddon {
+  id: string;
+  name: string;
+  price: string;
+}
+
 export interface CartLineView {
   id: string;
   productId: string;
   productName: string;
   variantId: string | null;
   variantName: string | null;
-  addonIds: string[];
-  addonNames: string[];
+  variantPrice: string | null;
+  addons: CartLineAddon[];
   quantity: number;
   unitPrice: string;
   lineTotal: string;
@@ -173,8 +179,8 @@ export class CartService {
         productName: "Item no longer available",
         variantId: item.variantId,
         variantName: null,
-        addonIds: item.addonIds,
-        addonNames: [],
+        variantPrice: null,
+        addons: [],
         quantity: item.quantity,
         unitPrice: "0.00",
         lineTotal: "0.00",
@@ -201,8 +207,8 @@ export class CartService {
       productName: product.name,
       variantId: item.variantId,
       variantName: variant?.name ?? null,
-      addonIds: item.addonIds,
-      addonNames: addons.map((a) => a.name),
+      variantPrice: variant?.price ?? null,
+      addons: addons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
       quantity: item.quantity,
       unitPrice: unitPrice.toFixed(2),
       lineTotal: lineTotal.toFixed(2),

@@ -22,6 +22,7 @@ import { ProductsModule } from "./modules/products/products.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { AddressesModule } from "./modules/addresses/addresses.module";
 import { CartModule } from "./modules/cart/cart.module";
+import { OrdersModule } from "./modules/orders/orders.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -47,6 +48,7 @@ import { AppController } from "./app.controller";
     CustomersModule,
     AddressesModule,
     CartModule,
+    OrdersModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

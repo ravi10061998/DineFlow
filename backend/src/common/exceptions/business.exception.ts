@@ -129,3 +129,21 @@ export const CartErrors = {
   invalidAddon: () =>
     new BusinessException("INVALID_ADDON", "One or more selected add-ons do not belong to this product.", HttpStatus.BAD_REQUEST),
 };
+
+export const OrderErrors = {
+  cartEmpty: () => new BusinessException("CART_EMPTY", "Your cart is empty — add items before checking out.", HttpStatus.BAD_REQUEST),
+  itemsUnavailable: () =>
+    new BusinessException(
+      "CART_ITEMS_UNAVAILABLE",
+      "One or more items in your cart are no longer available. Remove or replace them before checking out.",
+      HttpStatus.CONFLICT,
+    ),
+  invalidStatusTransition: (from: string, to: string) =>
+    new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move an order from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),
+  cannotBeCancelled: () =>
+    new BusinessException(
+      "ORDER_CANNOT_BE_CANCELLED",
+      "This order can no longer be cancelled — it has already been confirmed by the restaurant.",
+      HttpStatus.CONFLICT,
+    ),
+};
