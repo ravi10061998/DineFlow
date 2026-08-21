@@ -114,3 +114,18 @@ export const AddressErrors = {
   limitReached: (max: number) =>
     new BusinessException("ADDRESS_LIMIT_REACHED", `You can save at most ${max} addresses — delete one before adding another.`, HttpStatus.CONFLICT),
 };
+
+export const CartErrors = {
+  differentRestaurant: (existingRestaurantName: string) =>
+    new BusinessException(
+      "CART_DIFFERENT_RESTAURANT",
+      `Your cart already has items from ${existingRestaurantName}. Clear it before adding items from another restaurant.`,
+      HttpStatus.CONFLICT,
+    ),
+  productUnavailable: () =>
+    new BusinessException("PRODUCT_UNAVAILABLE", "This item is currently unavailable.", HttpStatus.CONFLICT),
+  invalidVariant: () =>
+    new BusinessException("INVALID_VARIANT", "The selected variant does not belong to this product.", HttpStatus.BAD_REQUEST),
+  invalidAddon: () =>
+    new BusinessException("INVALID_ADDON", "One or more selected add-ons do not belong to this product.", HttpStatus.BAD_REQUEST),
+};

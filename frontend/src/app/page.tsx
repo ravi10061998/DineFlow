@@ -54,14 +54,22 @@ export default function Home() {
             Order from restaurants near you
           </h1>
           <p className="max-w-md text-orange-50">
-            The customer storefront (browse restaurants, menus, cart, checkout) is built out in a later module.
+            Browse menus and build a cart today — checkout is built out in a later module.
           </p>
-          <Link
-            href="/register-restaurant"
-            className="mt-2 rounded-md bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/40 backdrop-blur-sm transition hover:bg-white/20"
-          >
-            Own a restaurant? Register it here →
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/restaurants"
+              className="rounded-md bg-white px-5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-amber-50"
+            >
+              Browse restaurants →
+            </Link>
+            <Link
+              href="/register-restaurant"
+              className="rounded-md bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/40 backdrop-blur-sm transition hover:bg-white/20"
+            >
+              Own a restaurant? Register it here →
+            </Link>
+          </div>
         </main>
       </div>
     </div>

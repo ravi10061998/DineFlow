@@ -100,8 +100,11 @@ function ProfilePageContent() {
           <Logo />
         </Link>
         <div className="flex items-center gap-4 text-sm">
-          <Link href="/" className="text-slate-500 hover:text-slate-900">
-            Back to home
+          <Link href="/restaurants" className="text-slate-500 hover:text-slate-900">
+            Browse restaurants
+          </Link>
+          <Link href="/cart" className="text-slate-500 hover:text-slate-900">
+            My cart
           </Link>
           <button onClick={() => logout()} className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50">
             Sign out

@@ -10,6 +10,7 @@ import { RestaurantDocumentsService } from "./restaurant-documents.service";
 import { RestaurantRegistrationController } from "./restaurant-registration.controller";
 import { RestaurantSelfServiceController } from "./restaurant-self-service.controller";
 import { AdminRestaurantsController } from "./admin-restaurants.controller";
+import { PublicRestaurantsController } from "./public-restaurants.controller";
 import { UsersModule } from "../users/users.module";
 import { RolesModule } from "../roles/roles.module";
 import { AuthModule } from "../auth/auth.module";
@@ -27,7 +28,12 @@ import { AuthModule } from "../auth/auth.module";
     RolesModule,
     AuthModule,
   ],
-  controllers: [RestaurantRegistrationController, RestaurantSelfServiceController, AdminRestaurantsController],
+  controllers: [
+    RestaurantRegistrationController,
+    RestaurantSelfServiceController,
+    AdminRestaurantsController,
+    PublicRestaurantsController,
+  ],
   providers: [RestaurantsService, RestaurantDocumentsService],
   exports: [RestaurantsService, RestaurantDocumentsService],
 })

@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { RequireAuth } from "@/components/require-auth";
+import { Logo } from "@/components/logo";
+import { api } from "@/lib/api-client";
+import { useApiQuery } from "@/lib/use-api-query";
+import { getErrorMessage } from "@/lib/errors";
+import type { Cart } from "@/lib/cart-types";
+import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/ui/error-banner";
+
+function CartPageContent() {
+  const { data: cart, loading, error, reload } = useApiQuery(() => api.get<Cart>("/customer/me/cart"));
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function updateQuantity(id: string, quantity: number) {
+    setActionError(null);
+    setBusyId(id);
+    try {
+      await api.patch(`/customer/me/cart/${id}`, { quantity });
+      reload();
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function removeItem(id: string) {
+    setActionError(null);
+    setBusyId(id);
+    try {
+      await api.delete(`/customer/me/cart/${id}`);
+      reload();
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function clearCart() {
+    if (!window.confirm("Clear your entire cart?")) return;
+    setActionError(null);
+    try {
+      await api.delete("/customer/me/cart");
+      reload();
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <Link href="/">
+          <Logo />
+        </Link>
+        <Link href="/restaurants" className="text-sm font-medium text-slate-700 hover:text-slate-900">
+          Browse restaurants
+        </Link>
+      </header>
+
+      <main className="mx-auto max-w-xl px-6 py-10">
+        <h1 className="text-2xl font-semibold text-slate-900">Your Cart</h1>
+        {cart?.restaurantName && <p className="mt-1 text-sm text-slate-500">Ordering from {cart.restaurantName}</p>}
+
+        <ErrorBanner message={error ?? actionError} />
+
+        {loading ? (
+          <p className="mt-6 text-slate-500">Loading…</p>
+        ) : cart?.items.length === 0 ? (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-8 text-center">
+            <p className="text-slate-400">Your cart is empty.</p>
+            <Link href="/restaurants" className="mt-3 inline-block font-medium text-slate-900 underline">
+              Browse restaurants
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            <ul className="space-y-2">
+              {cart?.items.map((item) => (
+                <li key={item.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className={`font-medium ${item.isAvailable ? "text-slate-900" : "text-red-600"}`}>{item.productName}</p>
+                      {item.variantName && <p className="text-sm text-slate-500">{item.variantName}</p>}
+                      {item.addonNames.length > 0 && <p className="text-sm text-slate-500">+ {item.addonNames.join(", ")}</p>}
+                      {!item.isAvailable && <p className="text-xs text-red-600">No longer available — please remove this item.</p>}
+                      <p className="mt-1 text-sm font-semibold text-slate-700">
+                        ₹{item.unitPrice} × {item.quantity} = ₹{item.lineTotal}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <div className="flex items-center rounded-md border border-slate-300">
+                        <button
+                          type="button"
+                          disabled={busyId === item.id}
+                          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                          className="px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          −
+                        </button>
+                        <span className="px-3 text-sm">{item.quantity}</span>
+                        <button
+                          type="button"
+                          disabled={busyId === item.id}
+                          onClick={() => updateQuantity(item.id, Math.min(50, item.quantity + 1))}
+                          className="px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <Button variant="danger" loading={busyId === item.id} onClick={() => removeItem(item.id)}>
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
+              <span className="font-medium text-slate-700">Subtotal</span>
+              <span className="text-lg font-semibold text-slate-900">₹{cart?.subtotal}</span>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={clearCart}>
+                Clear cart
+              </Button>
+              <Button disabled title="Checkout is built in a later module">
+                Checkout (coming soon)
+              </Button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <RequireAuth roles={["CUSTOMER"]}>
+      <CartPageContent />
+    </RequireAuth>
+  );
+}
