@@ -12,5 +12,8 @@ import { OrdersModule } from "../orders/orders.module";
   imports: [TypeOrmModule.forFeature([Payment]), OrdersModule],
   controllers: [CustomerPaymentsController, AdminPaymentsController],
   providers: [PaymentsService, MockPaymentGateway, { provide: PAYMENT_GATEWAY, useExisting: MockPaymentGateway }],
+  // Exported so Webhooks (Module 13) can apply a gateway-reported outcome without duplicating
+  // the payment+order transactional update logic that already lives in verify().
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

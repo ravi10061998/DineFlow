@@ -7,7 +7,9 @@ import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true — webhook signature verification (Module 13) must HMAC the exact raw request
+  // bytes; Nest still parses req.body as JSON normally, this just additionally keeps req.rawBody.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.use(helmet());
   app.use(cookieParser());

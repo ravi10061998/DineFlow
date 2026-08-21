@@ -128,4 +128,45 @@ describe("PaymentsService", () => {
       expect(updateCalls).toContainEqual([Order, "o1", { paymentStatus: OrderPaymentStatus.FAILED }]);
     });
   });
+
+  describe("findOwnedPayment", () => {
+    it("404s when the order isn't owned by this customer", async () => {
+      ordersService.findOneOrThrow.mockRejectedValue(new NotFoundException());
+
+      await expect(service.findOwnedPayment("o1", "someone-else", "p1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("404s when the payment doesn't belong to the order", async () => {
+      paymentsRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.findOwnedPayment("o1", "u1", "p1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("applyWebhookOutcome", () => {
+    it("404s when no payment matches the gateway order id", async () => {
+      paymentsRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.applyWebhookOutcome("unknown_gateway_order", true, "pay_1", null)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("is a no-op when the payment has already been resolved", async () => {
+      paymentsRepo.findOne.mockResolvedValue({ id: "p1", orderId: "o1", gatewayOrderId: "mock_order_1", status: PaymentStatus.SUCCEEDED });
+
+      await service.applyWebhookOutcome("mock_order_1", true, "pay_1", null);
+
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it("applies the outcome when the payment is still CREATED", async () => {
+      paymentsRepo.findOne.mockResolvedValue({ id: "p1", orderId: "o1", gatewayOrderId: "mock_order_1", status: PaymentStatus.CREATED });
+      const updateCalls: any[] = [];
+      dataSource.transaction.mockImplementation(async (cb: any) => cb({ update: async (...args: any[]) => updateCalls.push(args) }));
+
+      await service.applyWebhookOutcome("mock_order_1", true, "pay_1", null);
+
+      expect(updateCalls).toContainEqual([Payment, "p1", { gatewayPaymentId: "pay_1", status: PaymentStatus.SUCCEEDED, failureReason: null }]);
+      expect(updateCalls).toContainEqual([Order, "o1", { paymentStatus: OrderPaymentStatus.PAID }]);
+    });
+  });
 });

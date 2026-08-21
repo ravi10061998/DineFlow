@@ -78,26 +78,57 @@ export class PaymentsService {
     }
 
     const isValid = this.gateway.verifySignature(payment.gatewayOrderId, dto.gatewayPaymentId, dto.signature);
-
-    // Payment + Order are updated together — a payment can never end up SUCCEEDED while the
-    // order it belongs to is left PENDING (same "cross-table business operation" shape as
-    // Order's own status-transition method, just spanning Payment+Order instead of Order+History).
-    await this.dataSource.transaction(async (manager) => {
-      await manager.update(Payment, payment.id, {
-        gatewayPaymentId: dto.gatewayPaymentId,
-        status: isValid ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
-        failureReason: isValid ? null : "Signature verification failed",
-      });
-      await manager.update(Order, order.id, {
-        paymentStatus: isValid ? OrderPaymentStatus.PAID : OrderPaymentStatus.FAILED,
-      });
-    });
+    await this.applyOutcome(payment, isValid, dto.gatewayPaymentId, isValid ? null : "Signature verification failed");
 
     if (!isValid) {
       throw PaymentErrors.verificationFailed();
     }
 
     return this.findOneOrThrow(payment.id, customerId);
+  }
+
+  /** Ownership-scoped lookup by (orderId, paymentId) — shared by mockComplete and Webhooks' mock-send. */
+  async findOwnedPayment(orderId: string, customerId: string, paymentId: string): Promise<Payment> {
+    await this.ordersService.findOneOrThrow(orderId, { customerId }); // ownership check, 404s otherwise
+    const payment = await this.paymentsRepository.findOne({ where: { id: paymentId, orderId } });
+    if (!payment) {
+      throw new NotFoundException("Payment not found");
+    }
+    return payment;
+  }
+
+  /**
+   * Applies a gateway-reported outcome by `gatewayOrderId` — this is what a real webhook (Module
+   * 13) calls, since a webhook has no `paymentId` to key off, only whatever the gateway itself
+   * echoes back. Idempotent: a payment already resolved (by `verify()` or an earlier webhook
+   * delivery) is left alone rather than re-applied — the two entry points can race, and whichever
+   * lands first wins.
+   */
+  async applyWebhookOutcome(gatewayOrderId: string, succeeded: boolean, gatewayPaymentId: string, failureReason: string | null): Promise<void> {
+    const payment = await this.paymentsRepository.findOne({ where: { gatewayOrderId } });
+    if (!payment) {
+      throw new NotFoundException(`No payment found for gateway order ${gatewayOrderId}`);
+    }
+    if (payment.status !== PaymentStatus.CREATED) {
+      return; // already resolved — idempotent no-op, not an error
+    }
+    await this.applyOutcome(payment, succeeded, gatewayPaymentId, failureReason);
+  }
+
+  // Payment + Order are updated together — a payment can never end up SUCCEEDED while the
+  // order it belongs to is left PENDING (same "cross-table business operation" shape as
+  // Order's own status-transition method, just spanning Payment+Order instead of Order+History).
+  private async applyOutcome(payment: Payment, succeeded: boolean, gatewayPaymentId: string, failureReason: string | null): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(Payment, payment.id, {
+        gatewayPaymentId,
+        status: succeeded ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
+        failureReason: succeeded ? null : failureReason,
+      });
+      await manager.update(Order, payment.orderId, {
+        paymentStatus: succeeded ? OrderPaymentStatus.PAID : OrderPaymentStatus.FAILED,
+      });
+    });
   }
 
   /**
