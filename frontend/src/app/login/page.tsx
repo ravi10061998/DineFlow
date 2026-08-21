@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      const destination = user.role === "ADMIN" ? "/admin" : user.role.startsWith("RESTAURANT") ? "/restaurant" : "/";
+      const destination = user.role === "ADMIN" ? "/admin" : user.role.startsWith("RESTAURANT") ? "/restaurant" : "/profile";
       router.push(destination);
     } catch (err) {
       setError(getErrorMessage(err));

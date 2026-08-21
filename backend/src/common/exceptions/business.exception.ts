@@ -104,3 +104,8 @@ export const ProductErrors = {
       HttpStatus.BAD_REQUEST,
     ),
 };
+
+export const CustomerErrors = {
+  phoneTaken: () =>
+    new BusinessException("PHONE_ALREADY_IN_USE", "This phone number is already in use by another account.", HttpStatus.CONFLICT),
+};

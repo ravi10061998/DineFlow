@@ -32,7 +32,7 @@ export default function RegisterPage() {
         { skipAuth: true },
       );
       applySession(data.user, { accessToken: data.accessToken, refreshToken: data.refreshToken });
-      router.push("/");
+      router.push("/profile");
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
