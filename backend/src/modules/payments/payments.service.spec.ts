@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 import { ConfigService } from "@nestjs/config";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { NotFoundException } from "@nestjs/common";
 import { PaymentsService } from "./payments.service";
 import { Payment, PaymentStatus } from "./entities/payment.entity";
@@ -16,6 +17,7 @@ describe("PaymentsService", () => {
   let ordersService: { findOneOrThrow: jest.Mock };
   let gateway: { name: string; createOrder: jest.Mock; verifySignature: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let eventEmitter: { emit: jest.Mock };
 
   const order = { id: "o1", customerId: "u1", orderNumber: "ORD-1", totalAmount: "340.00", status: OrderStatus.PLACED, paymentStatus: OrderPaymentStatus.PENDING };
 
@@ -33,6 +35,7 @@ describe("PaymentsService", () => {
       verifySignature: jest.fn().mockReturnValue(true),
     };
     dataSource = { transaction: jest.fn() };
+    eventEmitter = { emit: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -43,6 +46,7 @@ describe("PaymentsService", () => {
         { provide: MockPaymentGateway, useValue: { sign: jest.fn().mockReturnValue("mock-signature") } },
         { provide: DataSource, useValue: dataSource },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue("mock_key_id_dev") } },
+        { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
 
@@ -108,6 +112,7 @@ describe("PaymentsService", () => {
       ]);
       expect(updateCalls).toContainEqual([Order, "o1", { paymentStatus: OrderPaymentStatus.PAID }]);
       expect(result.status).toBe(PaymentStatus.SUCCEEDED);
+      expect(eventEmitter.emit).toHaveBeenCalledWith("payment.succeeded", expect.objectContaining({ paymentId: "p1", orderId: "o1" }));
     });
 
     it("marks the payment FAILED and the order FAILED, then throws, on an invalid signature", async () => {
@@ -126,6 +131,7 @@ describe("PaymentsService", () => {
         { gatewayPaymentId: "pay_1", status: PaymentStatus.FAILED, failureReason: "Signature verification failed" },
       ]);
       expect(updateCalls).toContainEqual([Order, "o1", { paymentStatus: OrderPaymentStatus.FAILED }]);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });
 

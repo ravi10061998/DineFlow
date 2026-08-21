@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DataSource, Repository } from "typeorm";
 import * as crypto from "crypto";
 import { Payment, PaymentStatus } from "./entities/payment.entity";
@@ -10,6 +11,7 @@ import { PAYMENT_GATEWAY, PaymentGateway } from "./gateways/payment-gateway.inte
 import { MockPaymentGateway } from "./gateways/mock-payment.gateway";
 import { VerifyPaymentDto } from "./dto/verify-payment.dto";
 import { PaymentErrors } from "../../common/exceptions/business.exception";
+import { PAYMENT_SUCCEEDED_EVENT, PaymentSucceededEvent } from "../../common/events/payment-succeeded.event";
 
 @Injectable()
 export class PaymentsService {
@@ -22,6 +24,7 @@ export class PaymentsService {
     private readonly mockGateway: MockPaymentGateway,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findOneOrThrow(id: string, customerId: string): Promise<Payment> {
@@ -134,6 +137,14 @@ export class PaymentsService {
         paymentStatus: succeeded ? OrderPaymentStatus.PAID : OrderPaymentStatus.FAILED,
       });
     });
+
+    // Emitted only after commit — Ledger's listener (crediting the restaurant's payout) must
+    // never act on an outcome that could still roll back. Both callers of applyOutcome already
+    // guard on payment.status === CREATED before reaching here, so this fires at most once per
+    // payment row — no separate idempotency check needed on the Ledger side.
+    if (succeeded) {
+      this.eventEmitter.emit(PAYMENT_SUCCEEDED_EVENT, new PaymentSucceededEvent(payment.id, payment.orderId));
+    }
   }
 
   /**

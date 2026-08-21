@@ -11,6 +11,7 @@ import { ErrorBanner } from "@/components/ui/error-banner";
 import { CommissionModal } from "./commission-modal";
 import { CategoriesModal } from "./categories-modal";
 import { ProductsModal } from "./products-modal";
+import { LedgerModal } from "./ledger-modal";
 
 const STATUS_FILTERS: (RestaurantStatus | "ALL")[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "SUSPENDED", "BLOCKED"];
 
@@ -21,6 +22,7 @@ export default function AdminRestaurantsPage() {
   const [commissionRestaurantId, setCommissionRestaurantId] = useState<string | null>(null);
   const [categoriesRestaurantId, setCategoriesRestaurantId] = useState<string | null>(null);
   const [productsRestaurantId, setProductsRestaurantId] = useState<string | null>(null);
+  const [ledgerRestaurantId, setLedgerRestaurantId] = useState<string | null>(null);
 
   const { data: restaurants, loading, error, reload } = useApiQuery(
     () => api.get<Restaurant[]>(`/admin/restaurants${filter === "ALL" ? "" : `?status=${filter}`}`),
@@ -145,6 +147,9 @@ export default function AdminRestaurantsPage() {
                           <Button variant="secondary" onClick={() => setProductsRestaurantId(r.id)}>
                             Products
                           </Button>
+                          <Button variant="secondary" onClick={() => setLedgerRestaurantId(r.id)}>
+                            Ledger
+                          </Button>
                         </>
                       )}
                     </div>
@@ -165,6 +170,7 @@ export default function AdminRestaurantsPage() {
       {productsRestaurantId && (
         <ProductsModal restaurantId={productsRestaurantId} onClose={() => setProductsRestaurantId(null)} />
       )}
+      {ledgerRestaurantId && <LedgerModal restaurantId={ledgerRestaurantId} onClose={() => setLedgerRestaurantId(null)} />}
     </div>
   );
 }

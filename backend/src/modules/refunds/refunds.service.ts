@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { OnEvent } from "@nestjs/event-emitter";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { DataSource, Repository } from "typeorm";
 import { Refund, RefundStatus } from "./entities/refund.entity";
 import { Order, OrderPaymentStatus, OrderStatus } from "../orders/entities/order.entity";
@@ -8,6 +8,7 @@ import { OrdersService } from "../orders/orders.service";
 import { PaymentsService } from "../payments/payments.service";
 import { PAYMENT_GATEWAY, PaymentGateway } from "../payments/gateways/payment-gateway.interface";
 import { ORDER_STATUS_CHANGED_EVENT, OrderStatusChangedEvent } from "../../common/events/order-status-changed.event";
+import { REFUND_SUCCEEDED_EVENT, RefundSucceededEvent } from "../../common/events/refund-succeeded.event";
 import { RefundErrors } from "../../common/exceptions/business.exception";
 
 @Injectable()
@@ -20,6 +21,7 @@ export class RefundsService {
     private readonly paymentsService: PaymentsService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   findAllForAdmin(): Promise<Refund[]> {
@@ -66,7 +68,7 @@ export class RefundsService {
       this.logger.error(`Refund failed for order ${orderId}: ${failureReason}`);
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       const refund = manager.create(Refund, {
         orderId,
         paymentId: payment.id,
@@ -78,13 +80,21 @@ export class RefundsService {
         initiatedByUserId,
         failureReason,
       });
-      const saved = await manager.save(refund);
+      const created = await manager.save(refund);
 
       if (status === RefundStatus.SUCCEEDED) {
         await manager.update(Order, orderId, { paymentStatus: OrderPaymentStatus.REFUNDED });
       }
 
-      return saved;
+      return created;
     });
+
+    // Emitted only after commit — Ledger's listener (debiting the reversed payout) must never
+    // act on a refund that could still roll back.
+    if (status === RefundStatus.SUCCEEDED) {
+      this.eventEmitter.emit(REFUND_SUCCEEDED_EVENT, new RefundSucceededEvent(saved.id, orderId));
+    }
+
+    return saved;
   }
 }

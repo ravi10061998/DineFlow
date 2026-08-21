@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { RefundsService } from "./refunds.service";
 import { Refund, RefundStatus } from "./entities/refund.entity";
 import { Order, OrderPaymentStatus, OrderStatus } from "../orders/entities/order.entity";
@@ -16,6 +17,7 @@ describe("RefundsService", () => {
   let paymentsService: { findSucceededPaymentForOrder: jest.Mock };
   let gateway: { name: string; refund: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let eventEmitter: { emit: jest.Mock };
 
   const order = { id: "o1", totalAmount: "279.00", paymentStatus: OrderPaymentStatus.PAID };
   const payment = { id: "p1", orderId: "o1", gatewayPaymentId: "pay_1" };
@@ -26,6 +28,7 @@ describe("RefundsService", () => {
     paymentsService = { findSucceededPaymentForOrder: jest.fn().mockResolvedValue(payment) };
     gateway = { name: "MOCK", refund: jest.fn().mockResolvedValue({ gatewayRefundId: "mock_refund_1" }) };
     dataSource = { transaction: jest.fn() };
+    eventEmitter = { emit: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -35,6 +38,7 @@ describe("RefundsService", () => {
         { provide: PaymentsService, useValue: paymentsService },
         { provide: PAYMENT_GATEWAY, useValue: gateway },
         { provide: DataSource, useValue: dataSource },
+        { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
 
@@ -88,6 +92,7 @@ describe("RefundsService", () => {
       expect(result.status).toBe(RefundStatus.SUCCEEDED);
       expect(result.gatewayRefundId).toBe("mock_refund_1");
       expect(updateCalls).toContainEqual([Order, "o1", { paymentStatus: OrderPaymentStatus.REFUNDED }]);
+      expect(eventEmitter.emit).toHaveBeenCalledWith("refund.succeeded", expect.objectContaining({ orderId: "o1" }));
     });
 
     it("records a FAILED refund and leaves the order's paymentStatus untouched when the gateway call fails", async () => {
@@ -102,6 +107,7 @@ describe("RefundsService", () => {
       expect(result.status).toBe(RefundStatus.FAILED);
       expect(result.failureReason).toBe("gateway unreachable");
       expect(updateCalls).toHaveLength(0);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });
 });
