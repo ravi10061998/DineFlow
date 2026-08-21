@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+*.log
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# backend build
+backend/dist/

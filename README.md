@@ -1,0 +1,129 @@
+# DineFlow
+
+Multi-restaurant ordering, payment & delivery management platform. A monorepo with a Next.js (TypeScript) frontend and a NestJS (TypeScript, TypeORM, PostgreSQL) backend, managed as npm workspaces, built module by module per the platform spec.
+
+```
+dineflow/
+├── frontend/   # Next.js 16 app (App Router, TypeScript)
+├── backend/    # NestJS API (TypeScript, TypeORM, PostgreSQL, dynamic RBAC)
+└── package.json  # root workspace scripts
+```
+
+## Prerequisites
+
+- Node.js **≥ 20.9** (this repo was set up on Node 24 via `nvm`)
+- PostgreSQL running locally (or via Docker) — nothing was installed for you, see below
+
+## 1. Install dependencies
+
+From the repo root (installs both workspaces):
+
+```bash
+npm install
+```
+
+## 2. Set up PostgreSQL
+
+Create a database for the app. Either with a local Postgres install:
+
+```sql
+CREATE DATABASE dineflow;
+```
+
+or with Docker:
+
+```bash
+docker run --name dineflow-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dineflow -p 5432:5432 -d postgres:16
+```
+
+## 3. Configure environment variables
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+```
+
+Edit `backend/.env` — DB credentials and JWT secrets. Generate real secrets for anything beyond local dev (`openssl rand -hex 64`).
+
+## 4. Run migrations and seed the first admin
+
+The schema is owned entirely by migrations (no `synchronize`) from Module 2 onward:
+
+```bash
+npm run migration:run -w backend
+npm run seed:admin -w backend   # creates the first ADMIN user — see backend/.env for credentials
+```
+
+## 5. Run in development
+
+From the root, runs both apps concurrently:
+
+```bash
+npm run dev
+```
+
+- Frontend: http://localhost:3000
+- Backend: http://localhost:4000/api/v1 (health check at `/api/v1/health`, Swagger docs at `/api/docs`)
+
+Or run them individually: `npm run dev:frontend` / `npm run dev:backend`.
+
+> **Windows note:** Nest's watch-mode restarter shells out to `taskkill` on every file change. If your shell's `PATH` doesn't include `C:\Windows\System32` (true for some Git Bash / restricted PowerShell setups), the restart fails and the *old* process survives as a zombie still bound to port 4000 — serving stale code while looking like everything's fine. Fix: `$env:PATH += ";C:\Windows\System32"` before `npm run dev -w backend`. If you ever get inexplicable stale behavior after an edit, check `Get-NetTCPConnection -LocalPort 4000` for a leftover process first.
+>
+> **Low-memory note:** this dev machine has 8GB RAM. Running both dev servers plus a `nest build`/`jest` run at the same time can OOM-kill the build (`JavaScript heap out of memory`). If a build/test run crashes for no obvious reason, stop both dev servers first (`Get-Process -Name node | Stop-Process -Force`), run the build/tests, then restart the servers.
+
+## Backend architecture
+
+NestJS, organized per the spec's modular architecture (`src/modules/<name>/{entities,dto}`, `controllers`, `services`). Schema changes are migrations only — see `backend/src/database/migrations/`. `backend/src/database/data-source.ts` is the CLI-only datasource (migrations); the running app gets its TypeORM config from `backend/src/config/typeorm.config.ts` via `ConfigService`.
+
+### Modules built so far
+
+**Module 2 — Users, Roles, Permissions & Auth** (`src/modules/{auth,users,roles}`)
+- Fully dynamic RBAC: `roles`/`permissions`/`role_permissions` tables, admin-manageable at runtime. The 5 spec roles (`ADMIN`, `RESTAURANT_ADMIN`, `RESTAURANT_STAFF`, `CUSTOMER`, `DELIVERY_PARTNER`) are seeded as `is_system` roles and can't be deleted/renamed.
+- JWT access tokens (15 min) carry the caller's resolved permission list; routes declare requirements with `@RequirePermissions('module:action')`, checked by `PermissionsGuard`. Every route requires auth by default — opt out with `@Public()`.
+- Refresh tokens: opaque, hashed at rest, rotated on every use, with theft/reuse detection (reusing a revoked token revokes its whole session family).
+- Register/login/refresh/logout/logout-all, email verification, forgot/reset password. Email/SMS sending is stubbed to `console.log` — wire up the real Notifications module (§29) later.
+- `npm run seed:admin -w backend` bootstraps the first `ADMIN` user (not a migration — needs bcrypt).
+
+**Module 3 — Restaurant Registration & Approval** (`src/modules/restaurants`)
+- Public `POST /restaurants/register` creates a `PENDING` restaurant + its first `RESTAURANT_ADMIN` user atomically, then auto-logs them in (same token shape as customer register).
+- Admin lifecycle: `/admin/restaurants/:id/{approve,reject,suspend,block,reinstate}`, guarded by a server-side state machine (e.g. `PENDING→SUSPENDED` is rejected as `INVALID_STATUS_TRANSITION`; `BLOCKED` is terminal). Every transition is recorded in `restaurant_status_history` (who/when/why) — there's no Audit Log module yet, so this table is the only trail restaurant lifecycle changes get for now.
+- Self-service `/restaurant/me/*` routes (profile, business hours, holidays, documents) are identity-scoped via `RestaurantMemberGuard` + `req.user.restaurantId` — never the dynamic permission system, since these aren't admin actions.
+- Document uploads (`POST /restaurant/me/documents`, multipart) go to local disk (`backend/uploads/`, gitignored), validated by mime type/size, served back only through an authenticated route — never `express.static`. Admin can verify/reject each document.
+- Deliberately **not** storing raw bank account numbers on `restaurants` — that belongs in the Payment module's gateway-hosted onboarding (Module 17), not our DB.
+
+**Module 4 — Subscription Plans & Free Trial** (`src/modules/subscriptions`)
+- One row per restaurant in `restaurant_subscriptions` (mutable status), append-only `subscription_events` audit log — same pattern as Module 3's status history.
+- Trial auto-starts on restaurant approval via an event (`restaurant.status_changed`, `@nestjs/event-emitter`) rather than a direct service call — `RestaurantsService` and `SubscriptionsService` stay decoupled. "Only one free trial ever" is structural: the listener skips if the restaurant already has any subscription row, not just a convention.
+- Subscribing snapshots price/commission from the plan server-side (`priceSnapshot`/`commissionValueSnapshot` — the client only sends a `planId`). A later plan price change never retroactively affects an already-subscribed restaurant.
+- A daily cron (`@nestjs/schedule`, borrowed early from Module 35 the same way Module 3 borrowed `multer`) expires trials past `trialEndsAt` and logs reminder events at the configured day thresholds.
+- Seeded with the spec's own BASIC (₹999/mo, 10%) / PRO (₹1999/mo, 5%) / PREMIUM (₹2999/mo, 0%) example plans so the system is immediately exercisable.
+- **Deliberate limitation, flagged**: no payment gateway exists yet (Module 17), so `subscribe` activates a plan immediately instead of going through a pending-payment step.
+
+**Module 5 — Commission System** (`src/modules/commission`)
+- `calculateCommission(restaurantId, amount)` resolves the rate through a precedence chain — an active `commission_rules` override beats the subscription plan's snapshot, which beats the trial commission rate — then computes the platform/restaurant split. Percentage: `amount * value / 100`. Fixed: clamped so it can never exceed the order amount (never a negative restaurant payout).
+- `CommissionType` (PERCENTAGE/FIXED) moved to `common/enums/` — it's shared between `subscription_plans` and `commission_rules` now, no longer owned by one module.
+- A gap in Module 4 fixed here: `trial_settings` gets `trial_commission_type`/`trial_commission_value` columns (§5 always listed "Trial commission rate" as an admin setting; it just hadn't been added yet). Defaults to 0% — trials are commission-free unless admin sets otherwise.
+- At most one active `commission_rules` row per restaurant — creating a new one deactivates the prior one in the same transaction, preserving history rather than deleting it (same shape as Module 3/4's audit tables).
+- **Deliberate scope limit, flagged**: no `order_commissions` snapshot-per-order table yet — it's meaningless without an `orders` table to reference (Orders is a much later module). What's built now is the calculation engine itself (`CommissionService.calculateCommission`) plus preview endpoints; Orders will call this same service and persist its result once it exists.
+
+Unit tests: `npm test -w backend` (auth token rotation/reuse-detection, login rejection paths, role protection rules, restaurant status-transition guard, slug uniquing, trial-start eligibility, subscription snapshotting, plan-deletion guard, commission precedence chain, fixed-commission clamping, override-deactivation-on-create).
+
+## Frontend architecture
+
+Single Next.js app, role-scoped route groups — not separate apps per portal. `/admin/*` (ADMIN), `/restaurant/*` (RESTAURANT_ADMIN/STAFF), `/` reserved for the customer storefront (built out in the Customer module), `/login` + `/register` + `/register-restaurant` public.
+
+- **Styling**: Tailwind CSS v4. Reusable primitives in `src/components/ui/` (`Button`, `TextField`, `Modal`, `StatusBadge`, `ErrorBanner`) — every module's screens use these rather than reinventing styling.
+- **Auth**: `src/lib/auth-store.ts` is a plain (non-React) singleton holding the session — access token in memory, refresh token in `localStorage`, silent-refresh on page load. `src/lib/auth-context.tsx` wraps it with `useSyncExternalStore` for components (`useAuth()`). `src/lib/api-client.ts` is the fetch wrapper: attaches the access token, retries once through a shared refresh on a 401.
+  **Flagged limitation**: refresh tokens in `localStorage` are more XSS-exposed than httpOnly cookies. Deferred to **Module 37 (Security Hardening)**, which the spec itself schedules after MVP features — building it per-module now would slow every future screen down for a hardening step already planned later.
+- **Route protection**: `src/components/require-auth.tsx`, used per-portal layout (`app/admin/layout.tsx`, `app/restaurant/layout.tsx`), not global Next.js middleware — role requirements differ per route tree and the check needs the in-memory token anyway.
+- **Data fetching**: `src/lib/use-api-query.ts`, a small fetch-on-mount-plus-reload hook — every list/detail page uses this rather than hand-rolled `useEffect`s.
+- Frontend screens are built alongside each backend module from here on (Module 4 added both `admin/subscription-plans` and `restaurant/subscription`; Module 5 added a commission modal on the admin restaurants page — effective rate, split preview calculator, override rule history/creation — and a read-only commission card on the restaurant dashboard). Modules 2 and 3 got their screens retrofitted in the same pass as Module 4 (login/register/register-restaurant, admin restaurant approval queue, restaurant profile dashboard, a read-only roles viewer) since Module 4's screens depend on them being in place.
+- Verified visually with Playwright (`npx playwright install chromium` once; browsers were already cached locally) rather than just trusting the TypeScript build — screenshot + `console --errors`-equivalent check after logging in as both an admin and a restaurant owner.
+
+## Build for production
+
+```bash
+npm run build
+```
+
+Builds both `frontend` and `backend` (`backend/dist`, `frontend/.next`).

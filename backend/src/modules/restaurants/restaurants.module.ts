@@ -1,0 +1,34 @@
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Restaurant } from "./entities/restaurant.entity";
+import { RestaurantDocument } from "./entities/restaurant-document.entity";
+import { RestaurantBusinessHours } from "./entities/restaurant-business-hours.entity";
+import { RestaurantHoliday } from "./entities/restaurant-holiday.entity";
+import { RestaurantStatusHistory } from "./entities/restaurant-status-history.entity";
+import { RestaurantsService } from "./restaurants.service";
+import { RestaurantDocumentsService } from "./restaurant-documents.service";
+import { RestaurantRegistrationController } from "./restaurant-registration.controller";
+import { RestaurantSelfServiceController } from "./restaurant-self-service.controller";
+import { AdminRestaurantsController } from "./admin-restaurants.controller";
+import { UsersModule } from "../users/users.module";
+import { RolesModule } from "../roles/roles.module";
+import { AuthModule } from "../auth/auth.module";
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      Restaurant,
+      RestaurantDocument,
+      RestaurantBusinessHours,
+      RestaurantHoliday,
+      RestaurantStatusHistory,
+    ]),
+    UsersModule,
+    RolesModule,
+    AuthModule,
+  ],
+  controllers: [RestaurantRegistrationController, RestaurantSelfServiceController, AdminRestaurantsController],
+  providers: [RestaurantsService, RestaurantDocumentsService],
+  exports: [RestaurantsService, RestaurantDocumentsService],
+})
+export class RestaurantsModule {}

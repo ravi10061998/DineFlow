@@ -1,0 +1,19 @@
+import type { ReactNode } from "react";
+import { RequireAuth } from "@/components/require-auth";
+import { PortalNav } from "@/components/portal-nav";
+
+const NAV_ITEMS = [
+  { href: "/restaurant", label: "Dashboard" },
+  { href: "/restaurant/subscription", label: "Subscription" },
+];
+
+export default function RestaurantLayout({ children }: { children: ReactNode }) {
+  return (
+    <RequireAuth roles={["RESTAURANT_ADMIN", "RESTAURANT_STAFF"]}>
+      <div className="flex min-h-screen bg-slate-50">
+        <PortalNav title="Restaurant Portal" items={NAV_ITEMS} />
+        <main className="flex-1 overflow-x-auto p-8">{children}</main>
+      </div>
+    </RequireAuth>
+  );
+}
