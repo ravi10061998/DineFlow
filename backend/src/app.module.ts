@@ -20,6 +20,7 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { CustomersModule } from "./modules/customers/customers.module";
+import { AddressesModule } from "./modules/addresses/addresses.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -43,6 +44,7 @@ import { AppController } from "./app.controller";
     CategoriesModule,
     ProductsModule,
     CustomersModule,
+    AddressesModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

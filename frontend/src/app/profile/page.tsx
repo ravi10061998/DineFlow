@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { ProfilePhoto } from "@/components/profile-photo";
+import { AddressList } from "./address-list";
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: "MALE", label: "Male" },
@@ -159,6 +160,8 @@ function ProfilePageContent() {
                 Save changes
               </Button>
             </form>
+
+            <AddressList />
           </div>
         )}
       </main>

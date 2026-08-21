@@ -109,3 +109,8 @@ export const CustomerErrors = {
   phoneTaken: () =>
     new BusinessException("PHONE_ALREADY_IN_USE", "This phone number is already in use by another account.", HttpStatus.CONFLICT),
 };
+
+export const AddressErrors = {
+  limitReached: (max: number) =>
+    new BusinessException("ADDRESS_LIMIT_REACHED", `You can save at most ${max} addresses — delete one before adding another.`, HttpStatus.CONFLICT),
+};
