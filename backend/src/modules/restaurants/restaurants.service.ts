@@ -131,6 +131,12 @@ export class RestaurantsService {
     });
   }
 
+  async setFeatured(id: string, isFeatured: boolean): Promise<Restaurant> {
+    const restaurant = await this.findByIdOrThrow(id);
+    restaurant.isFeatured = isFeatured;
+    return this.restaurantsRepository.save(restaurant);
+  }
+
   /** Used by the admin dashboard summary — one grouped count query rather than fetching every row. */
   async countByStatus(): Promise<Record<RestaurantStatus, number>> {
     const rows = await this.restaurantsRepository

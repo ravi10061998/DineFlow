@@ -162,3 +162,19 @@ export const RefundErrors = {
   noSucceededPayment: () =>
     new BusinessException("NO_SUCCEEDED_PAYMENT", "This order has no successful payment to refund.", HttpStatus.CONFLICT),
 };
+
+export const FoodCategoryErrors = {
+  slugTaken: (slug: string) =>
+    new BusinessException("FOOD_CATEGORY_SLUG_TAKEN", `A food category with slug "${slug}" already exists.`, HttpStatus.CONFLICT),
+};
+
+export const OfferErrors = {
+  codeTaken: (code: string) =>
+    new BusinessException("OFFER_CODE_TAKEN", `An offer with code "${code}" already exists.`, HttpStatus.CONFLICT),
+};
+
+export const BlogErrors = {
+  slugTaken: (slug: string) => new BusinessException("BLOG_SLUG_TAKEN", `A blog with slug "${slug}" already exists.`, HttpStatus.CONFLICT),
+  categorySlugTaken: (slug: string) =>
+    new BusinessException("BLOG_CATEGORY_SLUG_TAKEN", `A blog category with slug "${slug}" already exists.`, HttpStatus.CONFLICT),
+};

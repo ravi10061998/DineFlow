@@ -1,77 +1,247 @@
 "use client";
 
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 import { useAuth } from "@/lib/auth-context";
-import { Logo } from "@/components/logo";
-
-// Subtle repeating dot pattern, inlined as a data URI — no network request,
-// never breaks, always renders identically. Swap for a real photo later by
-// dropping a file in `public/` and pointing an <Image> at it instead.
-const DOT_PATTERN =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='2' cy='2' r='1.6' fill='white' fill-opacity='0.35'/%3E%3C/svg%3E";
+import { locationStore, type DeliveryLocation } from "@/lib/location-store";
+import type { HomeFeed, HomePersonalization, StoreRestaurant } from "@/lib/home-types";
+import { SiteHeader } from "@/components/home/site-header";
+import { MobileBottomNav } from "@/components/home/mobile-bottom-nav";
+import { SiteFooter } from "@/components/home/site-footer";
+import { BannerCarousel } from "@/components/home/banner-carousel";
+import { CategoryStrip } from "@/components/home/category-strip";
+import { FilterChips, type QuickFilterKey } from "@/components/home/filter-chips";
+import { CarouselSection } from "@/components/home/carousel-section";
+import { RestaurantCard } from "@/components/home/restaurant-card";
+import { ProductCard } from "@/components/home/product-card";
+import { OfferCard } from "@/components/home/offer-card";
+import { OrderAgainCard } from "@/components/home/order-again-card";
+import { BlogCard } from "@/components/home/blog-card";
 
 export default function Home() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
+  const isCustomer = user?.role === "CUSTOMER";
+
+  // The bulk of the fold loads as one aggregate call (GET /store/home) for
+  // performance — it's a single independently-retryable unit. Personalization
+  // and nearby-restaurants are separate, independently-fetched sections so a
+  // failure or an absent precondition (no session, no location) in either
+  // never affects the other or the aggregate above.
+  const [feed, setFeed] = useState<HomeFeed | null>(null);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
+
+  const [personalization, setPersonalization] = useState<HomePersonalization | null>(null);
+  const [personalizationLoading, setPersonalizationLoading] = useState(false);
+  const [personalizationError, setPersonalizationError] = useState<string | null>(null);
+
+  const [location, setLocation] = useState<DeliveryLocation | null>(() => locationStore.get());
+  const [nearby, setNearby] = useState<StoreRestaurant[] | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyError, setNearbyError] = useState<string | null>(null);
+
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [activeFilters, setActiveFilters] = useState<QuickFilterKey[]>([]);
+
+  const loadFeed = useCallback(() => {
+    setFeedLoading(true);
+    setFeedError(null);
+    api
+      .get<HomeFeed>("/store/home")
+      .then(setFeed)
+      .catch((err) => setFeedError(getErrorMessage(err)))
+      .finally(() => setFeedLoading(false));
+  }, []);
+
+  const loadPersonalization = useCallback(() => {
+    setPersonalizationLoading(true);
+    setPersonalizationError(null);
+    api
+      .get<HomePersonalization>("/customer/me/home-personalization")
+      .then(setPersonalization)
+      .catch((err) => setPersonalizationError(getErrorMessage(err)))
+      .finally(() => setPersonalizationLoading(false));
+  }, []);
+
+  const loadNearby = useCallback((loc: DeliveryLocation) => {
+    setNearbyLoading(true);
+    setNearbyError(null);
+    api
+      .get<StoreRestaurant[]>(`/store/restaurants/nearby?lat=${loc.lat}&lng=${loc.lng}`)
+      .then(setNearby)
+      .catch((err) => setNearbyError(getErrorMessage(err)))
+      .finally(() => setNearbyLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  useEffect(() => {
+    if (isCustomer) loadPersonalization();
+  }, [isCustomer, loadPersonalization]);
+
+  useEffect(() => {
+    if (location) loadNearby(location);
+  }, [location, loadNearby]);
+
+  function handleLocationChange(next: DeliveryLocation | null) {
+    setLocation(next);
+    if (!next) {
+      setNearby(null);
+      setNearbyError(null);
+    }
+  }
+
+  function toggleFilter(key: QuickFilterKey) {
+    setActiveFilters((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  }
+
+  const showFeatured = activeFilters.length === 0 || activeFilters.includes("featured");
+  const showNearby = activeFilters.length === 0 || activeFilters.includes("nearby");
+  const showOffers = activeFilters.length === 0 || activeFilters.includes("offers");
+  const showPopularAndOthers = activeFilters.length === 0;
+
+  // The cuisine strip is a browse affordance, not a filter: products/restaurants aren't
+  // tagged with a food category anywhere in the schema yet, so `selectedCategory` only
+  // drives the strip's own highlight state rather than pretending to filter results below.
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="relative isolate overflow-hidden bg-gradient-to-br from-amber-500 via-orange-600 to-rose-700">
-        {/* Soft glow blobs for depth */}
-        <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-yellow-300 opacity-30 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/3 -right-32 h-[28rem] w-[28rem] rounded-full bg-rose-500 opacity-40 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-amber-400 opacity-30 blur-3xl" />
-        {/* Subtle dot texture */}
-        <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: `url("${DOT_PATTERN}")` }} />
+    <div className="min-h-screen bg-slate-50 pb-16 sm:pb-0">
+      <SiteHeader onLocationChange={handleLocationChange} />
+      <MobileBottomNav />
 
-        <header className="relative z-10 flex items-center justify-between px-6 py-4">
-          <Logo variant="light" />
-          <nav className="flex items-center gap-4 text-sm">
-            {!isLoading && user ? (
-              <Link
-                href={user.role === "ADMIN" ? "/admin" : user.role.startsWith("RESTAURANT") ? "/restaurant" : "/profile"}
-                className="rounded-md bg-white px-4 py-2 font-medium text-slate-900 shadow-sm transition hover:bg-amber-50"
-              >
-                {user.role === "CUSTOMER" ? "My Profile" : "Go to dashboard"}
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="font-medium text-white/90 hover:text-white">
-                  Sign in
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-md bg-white px-4 py-2 font-medium text-slate-900 shadow-sm transition hover:bg-amber-50"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </nav>
-        </header>
+      <BannerCarousel banners={feed?.banners ?? null} loading={feedLoading} error={feedError} />
 
-        <main className="relative z-10 flex flex-col items-center justify-center gap-5 px-6 py-28 text-center sm:py-36">
-          <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-white drop-shadow-sm sm:text-5xl">
-            Order from restaurants near you
-          </h1>
-          <p className="max-w-md text-orange-50">
-            Browse menus and build a cart today — checkout is built out in a later module.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/restaurants"
-              className="rounded-md bg-white px-5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-amber-50"
-            >
-              Browse restaurants →
-            </Link>
-            <Link
-              href="/register-restaurant"
-              className="rounded-md bg-white/10 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/40 backdrop-blur-sm transition hover:bg-white/20"
-            >
-              Own a restaurant? Register it here →
-            </Link>
-          </div>
-        </main>
-      </div>
+      <CategoryStrip
+        categories={feed?.categories ?? null}
+        loading={feedLoading}
+        error={feedError}
+        selected={selectedCategory}
+        onSelect={setSelectedCategory}
+      />
+
+      <FilterChips active={activeFilters} onToggle={toggleFilter} />
+
+      {showFeatured && (
+        <CarouselSection
+          title="Featured restaurants"
+          items={feed?.featuredRestaurants ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(r) => <RestaurantCard restaurant={r} />}
+          emptyMessage="No featured restaurants right now — check back soon."
+        />
+      )}
+
+      {showPopularAndOthers && (
+        <CarouselSection
+          title="Popular near everyone"
+          items={feed?.popularRestaurants ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(r) => <RestaurantCard restaurant={r} />}
+          emptyMessage="Not enough orders yet to rank popular restaurants."
+        />
+      )}
+
+      {isCustomer && (
+        <CarouselSection
+          title="Recommended for you"
+          items={personalization?.recommendedRestaurants ?? null}
+          loading={personalizationLoading}
+          error={personalizationError}
+          onRetry={loadPersonalization}
+          renderItem={(r) => <RestaurantCard restaurant={r} />}
+          emptyMessage="Order a few times and we'll start recommending restaurants for you."
+        />
+      )}
+
+      {showPopularAndOthers && (
+        <CarouselSection
+          title="Popular dishes"
+          items={feed?.popularProducts ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(p) => <ProductCard product={p} />}
+          emptyMessage="No dish ordering data yet."
+        />
+      )}
+
+      {showOffers && (
+        <CarouselSection
+          title="Offers for you"
+          items={feed?.offers ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(o) => <OfferCard offer={o} />}
+          emptyMessage="No active offers right now."
+        />
+      )}
+
+      {isCustomer && (
+        <CarouselSection
+          title="Order again"
+          items={personalization?.recentlyOrdered ?? null}
+          loading={personalizationLoading}
+          error={personalizationError}
+          onRetry={loadPersonalization}
+          renderItem={(p) => <OrderAgainCard product={p} />}
+          emptyMessage="You haven't ordered anything yet."
+        />
+      )}
+
+      {showNearby &&
+        (location ? (
+          <CarouselSection
+            title="Nearby restaurants"
+            items={nearby}
+            loading={nearbyLoading}
+            error={nearbyError}
+            onRetry={() => loadNearby(location)}
+            renderItem={(r) => <RestaurantCard restaurant={r} />}
+            emptyMessage="No restaurants deliver to your area yet."
+          />
+        ) : (
+          <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+            <h2 className="mb-3 text-lg font-semibold text-slate-900">Nearby restaurants</h2>
+            <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+              Set your delivery location above to see restaurants near you.
+            </p>
+          </section>
+        ))}
+
+      {showPopularAndOthers && (
+        <CarouselSection
+          title="Trending this month"
+          items={feed?.trendingProducts ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(p) => <ProductCard product={p} />}
+          emptyMessage="Nothing trending yet."
+        />
+      )}
+
+      {showPopularAndOthers && (
+        <CarouselSection
+          title="From the food blog"
+          viewAllHref="/blogs"
+          items={feed?.blogs ?? null}
+          loading={feedLoading}
+          error={feedError}
+          onRetry={loadFeed}
+          renderItem={(b) => <BlogCard blog={b} />}
+          emptyMessage="No articles published yet."
+        />
+      )}
+
+      <SiteFooter />
     </div>
   );
 }

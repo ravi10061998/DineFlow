@@ -27,6 +27,13 @@ import { PaymentsModule } from "./modules/payments/payments.module";
 import { WebhooksModule } from "./modules/webhooks/webhooks.module";
 import { RefundsModule } from "./modules/refunds/refunds.module";
 import { LedgerModule } from "./modules/ledger/ledger.module";
+import { FoodCategoriesModule } from "./modules/food-categories/food-categories.module";
+import { BannersModule } from "./modules/banners/banners.module";
+import { OffersModule } from "./modules/offers/offers.module";
+import { BlogsModule } from "./modules/blogs/blogs.module";
+import { FavoritesModule } from "./modules/favorites/favorites.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { StoreModule } from "./modules/store/store.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -57,6 +64,13 @@ import { AppController } from "./app.controller";
     WebhooksModule,
     RefundsModule,
     LedgerModule,
+    FoodCategoriesModule,
+    BannersModule,
+    OffersModule,
+    BlogsModule,
+    FavoritesModule,
+    NotificationsModule,
+    StoreModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

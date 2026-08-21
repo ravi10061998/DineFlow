@@ -63,4 +63,8 @@ export class Restaurant extends BaseEntity {
 
   @Column({ name: "delivery_radius_km", type: "decimal", precision: 5, scale: 2, default: 5 })
   deliveryRadiusKm!: string;
+
+  /** Admin-curated homepage placement — not a ranking signal, purely editorial. */
+  @Column({ name: "is_featured", type: "boolean", default: false })
+  isFeatured!: boolean;
 }

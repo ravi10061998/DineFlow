@@ -6,8 +6,18 @@ import { getErrorMessage } from "@/lib/errors";
 import type { MenuProduct } from "@/lib/cart-types";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { StoreProductImage } from "@/components/home/store-image";
+import { FavoriteButton } from "@/components/home/favorite-button";
 
-export function MenuProductCard({ product, canOrder }: { product: MenuProduct; canOrder: boolean }) {
+export function MenuProductCard({
+  product,
+  canOrder,
+  restaurantId,
+}: {
+  product: MenuProduct;
+  canOrder: boolean;
+  restaurantId: string;
+}) {
   const [variantId, setVariantId] = useState<string>(product.variants[0]?.id ?? "");
   const [addonIds, setAddonIds] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -48,12 +58,22 @@ export function MenuProductCard({ product, canOrder }: { product: MenuProduct; c
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className={`font-medium ${product.isAvailable ? "text-slate-900" : "text-slate-400"}`}>{product.name}</p>
-          {product.description && <p className="text-sm text-slate-500">{product.description}</p>}
-          <p className="mt-1 text-sm font-semibold text-slate-700">₹{product.basePrice}</p>
-          {!product.isAvailable && <p className="text-xs text-red-600">Currently out of stock</p>}
+        <div className="flex gap-3">
+          <StoreProductImage
+            restaurantId={restaurantId}
+            productId={product.id}
+            image={product.images[0] as { id: string } | undefined}
+            alt={product.name}
+            className="h-16 w-16 shrink-0 rounded-md object-cover"
+          />
+          <div>
+            <p className={`font-medium ${product.isAvailable ? "text-slate-900" : "text-slate-400"}`}>{product.name}</p>
+            {product.description && <p className="text-sm text-slate-500">{product.description}</p>}
+            <p className="mt-1 text-sm font-semibold text-slate-700">₹{product.basePrice}</p>
+            {!product.isAvailable && <p className="text-xs text-red-600">Currently out of stock</p>}
+          </div>
         </div>
+        <FavoriteButton targetType="PRODUCT" targetId={product.id} />
       </div>
 
       {canOrder && product.isAvailable && (

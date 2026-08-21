@@ -8,6 +8,7 @@ import { RestaurantDocumentsService } from "./restaurant-documents.service";
 import { RestaurantStatus } from "./entities/restaurant.entity";
 import { StatusChangeReasonDto } from "./dto/status-change-reason.dto";
 import { RejectDocumentDto } from "./dto/reject-document.dto";
+import { SetFeaturedDto } from "./dto/set-featured.dto";
 
 @ApiTags("Admin - Restaurants")
 @Controller("admin/restaurants")
@@ -90,6 +91,13 @@ export class AdminRestaurantsController {
   async resubmit(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() admin: AuthenticatedUser) {
     const restaurant = await this.restaurantsService.resubmit(id, admin.userId);
     return { message: "Restaurant moved back to pending review", data: restaurant };
+  }
+
+  @Patch(":id/featured")
+  @RequirePermissions("content:manage")
+  async setFeatured(@Param("id", ParseUUIDPipe) id: string, @Body() dto: SetFeaturedDto) {
+    const restaurant = await this.restaurantsService.setFeatured(id, dto.isFeatured);
+    return { message: "Featured status updated", data: restaurant };
   }
 
   @Get(":id/documents")

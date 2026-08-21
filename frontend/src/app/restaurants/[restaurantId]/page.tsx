@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import type { MenuCategory } from "@/lib/cart-types";
 import { Logo } from "@/components/logo";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { FavoriteButton } from "@/components/home/favorite-button";
 import { MenuProductCard } from "./menu-product-card";
 
 export default function RestaurantMenuPage() {
@@ -34,6 +35,11 @@ export default function RestaurantMenuPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-slate-900">Menu</h1>
+          <FavoriteButton targetType="RESTAURANT" targetId={restaurantId} />
+        </div>
+
         <ErrorBanner message={error} />
 
         {!user && (
@@ -64,7 +70,7 @@ export default function RestaurantMenuPage() {
                 ) : (
                   <div className="space-y-3">
                     {category.products.map((product) => (
-                      <MenuProductCard key={product.id} product={product} canOrder={canOrder} />
+                      <MenuProductCard key={product.id} product={product} canOrder={canOrder} restaurantId={restaurantId} />
                     ))}
                   </div>
                 )}
