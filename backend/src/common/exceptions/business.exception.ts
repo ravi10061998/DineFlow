@@ -78,3 +78,20 @@ export const CommissionErrors = {
       HttpStatus.CONFLICT,
     ),
 };
+
+export const CategoryErrors = {
+  nameTaken: (name: string) =>
+    new BusinessException("CATEGORY_NAME_TAKEN", `A category named "${name}" already exists.`, HttpStatus.CONFLICT),
+  inUse: () =>
+    new BusinessException(
+      "CATEGORY_IN_USE",
+      "This category still has products in it and cannot be deleted — deactivate it instead.",
+      HttpStatus.CONFLICT,
+    ),
+  reorderInvalid: () =>
+    new BusinessException(
+      "REORDER_INVALID",
+      "The category list must contain exactly this restaurant's categories, each exactly once.",
+      HttpStatus.BAD_REQUEST,
+    ),
+};

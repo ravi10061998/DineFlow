@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { CommissionModal } from "./commission-modal";
+import { CategoriesModal } from "./categories-modal";
 
 const STATUS_FILTERS: (RestaurantStatus | "ALL")[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "SUSPENDED", "BLOCKED"];
 
@@ -17,6 +18,7 @@ export default function AdminRestaurantsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [commissionRestaurantId, setCommissionRestaurantId] = useState<string | null>(null);
+  const [categoriesRestaurantId, setCategoriesRestaurantId] = useState<string | null>(null);
 
   const { data: restaurants, loading, error, reload } = useApiQuery(
     () => api.get<Restaurant[]>(`/admin/restaurants${filter === "ALL" ? "" : `?status=${filter}`}`),
@@ -131,9 +133,14 @@ export default function AdminRestaurantsPage() {
                         </Button>
                       ))}
                       {(r.status === "APPROVED" || r.status === "SUSPENDED") && (
-                        <Button variant="secondary" onClick={() => setCommissionRestaurantId(r.id)}>
-                          Commission
-                        </Button>
+                        <>
+                          <Button variant="secondary" onClick={() => setCommissionRestaurantId(r.id)}>
+                            Commission
+                          </Button>
+                          <Button variant="secondary" onClick={() => setCategoriesRestaurantId(r.id)}>
+                            Categories
+                          </Button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -146,6 +153,9 @@ export default function AdminRestaurantsPage() {
 
       {commissionRestaurantId && (
         <CommissionModal restaurantId={commissionRestaurantId} onClose={() => setCommissionRestaurantId(null)} />
+      )}
+      {categoriesRestaurantId && (
+        <CategoriesModal restaurantId={categoriesRestaurantId} onClose={() => setCategoriesRestaurantId(null)} />
       )}
     </div>
   );

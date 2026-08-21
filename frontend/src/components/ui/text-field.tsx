@@ -1,11 +1,15 @@
-import type { InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes } from "react";
 
 interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
 export function TextField({ label, id, ...props }: TextFieldProps) {
-  const fieldId = id ?? props.name;
+  // Falls back to a generated id when neither `id` nor `name` is passed —
+  // without this, <label htmlFor> had nothing to point at on many call
+  // sites, breaking click-to-focus and screen-reader label association.
+  const generatedId = useId();
+  const fieldId = id ?? props.name ?? generatedId;
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={fieldId} className="text-sm font-medium text-slate-700">
