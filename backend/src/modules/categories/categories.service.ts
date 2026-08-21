@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
@@ -6,6 +6,7 @@ import { Category } from "./entities/category.entity";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { CategoryErrors } from "../../common/exceptions/business.exception";
+import { ProductsService } from "../products/products.service";
 
 /** Postgres unique_violation error code. */
 const UNIQUE_VIOLATION = "23505";
@@ -15,6 +16,9 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category) private readonly categoriesRepository: Repository<Category>,
     private readonly dataSource: DataSource,
+    // Genuine circular dependency: Products needs Categories for FK validation,
+    // Categories needs Products to know if a category is still in use before deleting it.
+    @Inject(forwardRef(() => ProductsService)) private readonly productsService: ProductsService,
   ) {}
 
   findAllForRestaurant(restaurantId: string): Promise<Category[]> {
@@ -57,10 +61,7 @@ export class CategoriesService {
 
   async remove(id: string, restaurantId: string): Promise<void> {
     const category = await this.findOneOrThrow(id, restaurantId);
-    // No `products` table until Module 7 — this is a structural no-op today,
-    // but the guard (and its error code) exists now so Module 7 only has to
-    // add the COUNT query, not revisit every caller of this method.
-    const productCount = await this.countProductsInCategory(id);
+    const productCount = await this.productsService.countInCategory(id);
     if (productCount > 0) {
       throw CategoryErrors.inUse();
     }
@@ -87,11 +88,6 @@ export class CategoriesService {
   private async nextSortOrder(restaurantId: string): Promise<number> {
     const count = await this.categoriesRepository.count({ where: { restaurantId } });
     return count;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async countProductsInCategory(_categoryId: string): Promise<number> {
-    return 0; // Replace with a real COUNT against `products` once Module 7 exists.
   }
 
   private mapDuplicateNameError(err: unknown, name: string): unknown {

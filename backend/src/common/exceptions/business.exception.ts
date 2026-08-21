@@ -95,3 +95,12 @@ export const CategoryErrors = {
       HttpStatus.BAD_REQUEST,
     ),
 };
+
+export const ProductErrors = {
+  reorderInvalid: () =>
+    new BusinessException(
+      "REORDER_INVALID",
+      "The product list must contain exactly this category's products, each exactly once.",
+      HttpStatus.BAD_REQUEST,
+    ),
+};

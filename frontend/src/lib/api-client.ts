@@ -83,6 +83,27 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   return body.data;
 }
 
+// <img src> can't carry an Authorization header, so authenticated image routes (product photos,
+// restaurant documents) need to be fetched as a blob and rendered via an object URL instead.
+export async function fetchAuthenticatedBlob(path: string): Promise<string> {
+  let res = await rawRequest(path, { method: "GET" }, authStore.getAccessToken());
+
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      res = await rawRequest(path, { method: "GET" }, authStore.getAccessToken());
+    } else {
+      authStore.clear();
+    }
+  }
+
+  if (!res.ok) {
+    throw new ApiError("IMAGE_FETCH_FAILED", `Failed to load image (status ${res.status})`, res.status);
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path, { method: "GET" }),
   post: <T>(path: string, data?: unknown, options: ApiFetchOptions = {}) =>

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { CommissionModal } from "./commission-modal";
 import { CategoriesModal } from "./categories-modal";
+import { ProductsModal } from "./products-modal";
 
 const STATUS_FILTERS: (RestaurantStatus | "ALL")[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "SUSPENDED", "BLOCKED"];
 
@@ -19,6 +20,7 @@ export default function AdminRestaurantsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [commissionRestaurantId, setCommissionRestaurantId] = useState<string | null>(null);
   const [categoriesRestaurantId, setCategoriesRestaurantId] = useState<string | null>(null);
+  const [productsRestaurantId, setProductsRestaurantId] = useState<string | null>(null);
 
   const { data: restaurants, loading, error, reload } = useApiQuery(
     () => api.get<Restaurant[]>(`/admin/restaurants${filter === "ALL" ? "" : `?status=${filter}`}`),
@@ -140,6 +142,9 @@ export default function AdminRestaurantsPage() {
                           <Button variant="secondary" onClick={() => setCategoriesRestaurantId(r.id)}>
                             Categories
                           </Button>
+                          <Button variant="secondary" onClick={() => setProductsRestaurantId(r.id)}>
+                            Products
+                          </Button>
                         </>
                       )}
                     </div>
@@ -156,6 +161,9 @@ export default function AdminRestaurantsPage() {
       )}
       {categoriesRestaurantId && (
         <CategoriesModal restaurantId={categoriesRestaurantId} onClose={() => setCategoriesRestaurantId(null)} />
+      )}
+      {productsRestaurantId && (
+        <ProductsModal restaurantId={productsRestaurantId} onClose={() => setProductsRestaurantId(null)} />
       )}
     </div>
   );

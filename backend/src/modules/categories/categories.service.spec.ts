@@ -3,11 +3,13 @@ import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError } from "typeorm";
 import { CategoriesService } from "./categories.service";
 import { Category } from "./entities/category.entity";
+import { ProductsService } from "../products/products.service";
 
 describe("CategoriesService", () => {
   let service: CategoriesService;
   let categoriesRepo: { create: jest.Mock; save: jest.Mock; count: jest.Mock; findOne: jest.Mock; remove: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let productsService: { countInCategory: jest.Mock };
 
   beforeEach(async () => {
     categoriesRepo = {
@@ -18,12 +20,14 @@ describe("CategoriesService", () => {
       remove: jest.fn(),
     };
     dataSource = { transaction: jest.fn() };
+    productsService = { countInCategory: jest.fn().mockResolvedValue(0) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         CategoriesService,
         { provide: getRepositoryToken(Category), useValue: categoriesRepo },
         { provide: DataSource, useValue: dataSource },
+        { provide: ProductsService, useValue: productsService },
       ],
     }).compile();
 
@@ -90,9 +94,9 @@ describe("CategoriesService", () => {
       expect(categoriesRepo.remove).toHaveBeenCalledWith(category);
     });
 
-    it("refuses to delete a category that still has products (future Module 7 guard)", async () => {
+    it("refuses to delete a category that still has products", async () => {
       categoriesRepo.findOne.mockResolvedValue({ id: "cat-1", restaurantId: "r1" });
-      jest.spyOn(service as any, "countProductsInCategory").mockResolvedValue(2);
+      productsService.countInCategory.mockResolvedValue(2);
 
       await expect(service.remove("cat-1", "r1")).rejects.toMatchObject({ code: "CATEGORY_IN_USE" });
       expect(categoriesRepo.remove).not.toHaveBeenCalled();

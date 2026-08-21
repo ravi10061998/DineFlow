@@ -18,6 +18,7 @@ import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.modul
 import { CommissionModule } from "./modules/commission/commission.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
+import { ProductsModule } from "./modules/products/products.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -39,6 +40,7 @@ import { AppController } from "./app.controller";
     CommissionModule,
     DashboardModule,
     CategoriesModule,
+    ProductsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
