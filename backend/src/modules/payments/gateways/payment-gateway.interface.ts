@@ -7,6 +7,10 @@ export interface GatewayOrder {
   currency: string;
 }
 
+export interface GatewayRefund {
+  gatewayRefundId: string;
+}
+
 /**
  * Swappable payment gateway. `MockPaymentGateway` is the only implementation
  * today (no real gateway credentials exist in this dev environment) — it's
@@ -17,4 +21,5 @@ export interface PaymentGateway {
   readonly name: string;
   createOrder(amount: number, currency: string, receipt: string): Promise<GatewayOrder>;
   verifySignature(gatewayOrderId: string, gatewayPaymentId: string, signature: string): boolean;
+  refund(gatewayPaymentId: string, amount: number): Promise<GatewayRefund>;
 }

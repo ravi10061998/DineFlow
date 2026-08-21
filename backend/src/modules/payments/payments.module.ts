@@ -12,8 +12,10 @@ import { OrdersModule } from "../orders/orders.module";
   imports: [TypeOrmModule.forFeature([Payment]), OrdersModule],
   controllers: [CustomerPaymentsController, AdminPaymentsController],
   providers: [PaymentsService, MockPaymentGateway, { provide: PAYMENT_GATEWAY, useExisting: MockPaymentGateway }],
-  // Exported so Webhooks (Module 13) can apply a gateway-reported outcome without duplicating
+  // PaymentsService: so Webhooks/Refunds can apply a gateway-reported outcome without duplicating
   // the payment+order transactional update logic that already lives in verify().
-  exports: [PaymentsService],
+  // PAYMENT_GATEWAY: so Refunds can call gateway.refund() directly, the same DI token this
+  // module itself uses — one place decides which concrete gateway is wired up.
+  exports: [PaymentsService, PAYMENT_GATEWAY],
 })
 export class PaymentsModule {}

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DataSource, Repository } from "typeorm";
 import * as crypto from "crypto";
+import { ORDER_STATUS_CHANGED_EVENT, OrderStatusChangedEvent } from "../../common/events/order-status-changed.event";
 import { Order, OrderStatus } from "./entities/order.entity";
 import { OrderItem } from "./entities/order-item.entity";
 import { OrderStatusHistory } from "./entities/order-status-history.entity";
@@ -32,6 +34,7 @@ export class OrdersService {
     private readonly addressesService: AddressesService,
     private readonly commissionService: CommissionService,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   findAllForCustomer(customerId: string): Promise<Order[]> {
@@ -145,8 +148,8 @@ export class OrdersService {
       throw OrderErrors.invalidStatusTransition(order.status, toStatus);
     }
 
+    const fromStatus = order.status;
     await this.dataSource.transaction(async (manager) => {
-      const fromStatus = order.status;
       order.status = toStatus;
       order.cancellationReason = toStatus === OrderStatus.CANCELLED ? reason : order.cancellationReason;
       await manager.save(order);
@@ -154,6 +157,10 @@ export class OrdersService {
       const history = manager.create(OrderStatusHistory, { orderId: order.id, fromStatus, toStatus, changedByUserId, reason });
       await manager.save(history);
     });
+
+    // Emitted only after commit — Refunds' listener (e.g. auto-refunding a cancelled paid
+    // order) must never act on a transition that could still roll back.
+    this.eventEmitter.emit(ORDER_STATUS_CHANGED_EVENT, new OrderStatusChangedEvent(order.id, fromStatus, toStatus, changedByUserId));
 
     return this.findOneOrThrow(order.id);
   }

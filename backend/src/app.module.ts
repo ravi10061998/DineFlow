@@ -25,6 +25,7 @@ import { CartModule } from "./modules/cart/cart.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { WebhooksModule } from "./modules/webhooks/webhooks.module";
+import { RefundsModule } from "./modules/refunds/refunds.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -53,6 +54,7 @@ import { AppController } from "./app.controller";
     OrdersModule,
     PaymentsModule,
     WebhooksModule,
+    RefundsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

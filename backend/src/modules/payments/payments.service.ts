@@ -37,6 +37,11 @@ export class PaymentsService {
     return this.paymentsRepository.findOne({ where: { orderId }, order: { createdAt: "DESC" } });
   }
 
+  /** Unscoped by customer — for internal service-to-service use (Refunds), not a controller-facing lookup. */
+  findSucceededPaymentForOrder(orderId: string): Promise<Payment | null> {
+    return this.paymentsRepository.findOne({ where: { orderId, status: PaymentStatus.SUCCEEDED }, order: { createdAt: "DESC" } });
+  }
+
   findAllForAdmin(): Promise<Payment[]> {
     return this.paymentsRepository.find({ relations: { order: true }, order: { createdAt: "DESC" } });
   }

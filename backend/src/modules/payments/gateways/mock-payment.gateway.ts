@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
-import { GatewayOrder, PaymentGateway } from "./payment-gateway.interface";
+import { GatewayOrder, GatewayRefund, PaymentGateway } from "./payment-gateway.interface";
 
 /**
  * Simulates a real gateway's shape without a network call: `createOrder`
@@ -22,6 +22,12 @@ export class MockPaymentGateway implements PaymentGateway {
 
   verifySignature(gatewayOrderId: string, gatewayPaymentId: string, signature: string): boolean {
     return this.sign(gatewayOrderId, gatewayPaymentId) === signature;
+  }
+
+  async refund(gatewayPaymentId: string, amount: number): Promise<GatewayRefund> {
+    void gatewayPaymentId; // a real gateway needs this to know what to reverse; unused by the mock
+    void amount;
+    return { gatewayRefundId: `mock_refund_${crypto.randomBytes(8).toString("hex")}` };
   }
 
   /**

@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DataSource } from "typeorm";
 import { OrdersService } from "./orders.service";
 import { Order, OrderStatus } from "./entities/order.entity";
@@ -16,6 +17,7 @@ describe("OrdersService", () => {
   let addressesService: { findOneOrThrow: jest.Mock };
   let commissionService: { calculateCommission: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let eventEmitter: { emit: jest.Mock };
 
   const fullCart = {
     restaurantId: "r1",
@@ -63,6 +65,7 @@ describe("OrdersService", () => {
     addressesService = { findOneOrThrow: jest.fn().mockResolvedValue(address) };
     commissionService = { calculateCommission: jest.fn().mockResolvedValue({ amount: 340, platformAmount: 34, restaurantAmount: 306 }) };
     dataSource = { transaction: jest.fn() };
+    eventEmitter = { emit: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -72,6 +75,7 @@ describe("OrdersService", () => {
         { provide: AddressesService, useValue: addressesService },
         { provide: CommissionService, useValue: commissionService },
         { provide: DataSource, useValue: dataSource },
+        { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
 
@@ -135,6 +139,10 @@ describe("OrdersService", () => {
       await service.cancelByCustomer("order1", "u1", "changed my mind");
 
       expect(ordersRepo.findOne).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        "order.status_changed",
+        expect.objectContaining({ orderId: "order1", fromStatus: OrderStatus.PLACED, toStatus: OrderStatus.CANCELLED }),
+      );
     });
 
     it("rejects cancelling an order that's already been confirmed", async () => {

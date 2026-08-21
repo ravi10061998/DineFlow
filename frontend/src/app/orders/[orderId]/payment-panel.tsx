@@ -21,7 +21,15 @@ export function PaymentPanel({ order, onChanged }: { order: Order; onChanged: ()
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<InitiateResult | null>(null);
 
-  if (order.status === "CANCELLED") return null;
+  if (order.paymentStatus === "REFUNDED") {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        ↩ Refunded ₹{order.totalAmount} — this order was cancelled after payment.
+      </div>
+    );
+  }
+
+  if (order.status === "CANCELLED") return null; // cancelled, never paid — nothing to show
 
   if (order.paymentStatus === "PAID") {
     return (

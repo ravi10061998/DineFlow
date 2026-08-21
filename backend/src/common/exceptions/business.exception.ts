@@ -157,3 +157,8 @@ export const PaymentErrors = {
   verificationFailed: () =>
     new BusinessException("PAYMENT_VERIFICATION_FAILED", "Payment verification failed.", HttpStatus.BAD_REQUEST),
 };
+
+export const RefundErrors = {
+  noSucceededPayment: () =>
+    new BusinessException("NO_SUCCEEDED_PAYMENT", "This order has no successful payment to refund.", HttpStatus.CONFLICT),
+};
