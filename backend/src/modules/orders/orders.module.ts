@@ -15,5 +15,7 @@ import { CommissionModule } from "../commission/commission.module";
   imports: [TypeOrmModule.forFeature([Order, OrderItem, OrderStatusHistory]), CartModule, AddressesModule, CommissionModule],
   controllers: [CustomerOrdersController, RestaurantOrdersController, AdminOrdersController],
   providers: [OrdersService],
+  // Exported so Payments can look up an order (ownership + current status) as part of its own flow.
+  exports: [OrdersService],
 })
 export class OrdersModule {}

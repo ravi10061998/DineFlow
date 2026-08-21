@@ -147,3 +147,13 @@ export const OrderErrors = {
       HttpStatus.CONFLICT,
     ),
 };
+
+export const PaymentErrors = {
+  alreadyPaid: () => new BusinessException("ORDER_ALREADY_PAID", "This order has already been paid for.", HttpStatus.CONFLICT),
+  orderCancelled: () =>
+    new BusinessException("ORDER_CANCELLED", "This order was cancelled and can no longer be paid for.", HttpStatus.CONFLICT),
+  alreadyProcessed: () =>
+    new BusinessException("PAYMENT_ALREADY_PROCESSED", "This payment attempt has already been processed.", HttpStatus.CONFLICT),
+  verificationFailed: () =>
+    new BusinessException("PAYMENT_VERIFICATION_FAILED", "Payment verification failed.", HttpStatus.BAD_REQUEST),
+};

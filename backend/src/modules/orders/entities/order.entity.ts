@@ -15,7 +15,7 @@ export enum OrderStatus {
   CANCELLED = "CANCELLED",
 }
 
-/** Only ever PENDING in this module — real payment integration is Module 17. */
+/** PENDING/PAID/FAILED are set by Module 12 (Payment); REFUNDED is a later Refund module's concern. */
 export enum OrderPaymentStatus {
   PENDING = "PENDING",
   PAID = "PAID",

@@ -15,6 +15,11 @@ const COLORS: Record<string, string> = {
   READY: "bg-violet-100 text-violet-800",
   OUT_FOR_DELIVERY: "bg-cyan-100 text-cyan-800",
   DELIVERED: "bg-green-100 text-green-800",
+  PAID: "bg-green-100 text-green-800",
+  FAILED: "bg-red-100 text-red-800",
+  REFUNDED: "bg-slate-200 text-slate-700",
+  CREATED: "bg-amber-100 text-amber-800",
+  SUCCEEDED: "bg-green-100 text-green-800",
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -52,7 +52,10 @@ function OrdersPageContent() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-slate-900">{order.orderNumber}</span>
-                    <StatusBadge status={order.status} />
+                    <div className="flex gap-1.5">
+                      <StatusBadge status={order.paymentStatus} />
+                      <StatusBadge status={order.status} />
+                    </div>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm text-slate-500">
                     <span>{new Date(order.createdAt).toLocaleString()}</span>

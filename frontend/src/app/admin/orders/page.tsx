@@ -28,6 +28,7 @@ export default function AdminOrdersPage() {
                 <th className="px-4 py-3">Order #</th>
                 <th className="px-4 py-3">Placed</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Payment</th>
                 <th className="px-4 py-3">Subtotal</th>
                 <th className="px-4 py-3">Commission</th>
                 <th className="px-4 py-3">Payout</th>
@@ -36,7 +37,7 @@ export default function AdminOrdersPage() {
             <tbody>
               {orders?.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                     No orders yet.
                   </td>
                 </tr>
@@ -47,6 +48,9 @@ export default function AdminOrdersPage() {
                   <td className="px-4 py-3 text-slate-600">{new Date(order.createdAt).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={order.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={order.paymentStatus} />
                   </td>
                   <td className="px-4 py-3 text-slate-600">₹{order.subtotal}</td>
                   <td className="px-4 py-3 text-slate-600">₹{order.commissionAmount}</td>
