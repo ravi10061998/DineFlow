@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
 import { getErrorMessage } from "@/lib/errors";
@@ -11,6 +11,9 @@ import { TextField } from "@/components/ui/text-field";
 import { TextAreaField } from "@/components/ui/textarea-field";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { ProductCard } from "./product-card";
+
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function RestaurantProductsPage() {
   const { data: categories, error: categoriesError } = useApiQuery(() => api.get<Category[]>("/restaurant/me/categories"));
@@ -24,7 +27,37 @@ export default function RestaurantProductsPage() {
   const [creating, setCreating] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   const activeCategoryId = categoryId || categories?.[0]?.id || "";
+
+  function handleImageSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setCreateError("Unsupported file type. Allowed: JPEG, PNG, WebP.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setCreateError("Image is too large. Max size is 5MB.");
+      e.target.value = "";
+      return;
+    }
+    setCreateError(null);
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  }
+
+  function clearImageSelection() {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -35,15 +68,30 @@ export default function RestaurantProductsPage() {
     setCreateError(null);
     setCreating(true);
     try {
-      await api.post("/restaurant/me/products", {
+      const created = await api.post<Product>("/restaurant/me/products", {
         categoryId: activeCategoryId,
         name,
         description: description || undefined,
         basePrice: Number(basePrice),
       });
+
+      // The image upload is a second call against an already-created product (that's the only
+      // shape the backend's multer-based upload route supports — see product-images.service.ts) —
+      // but from the restaurant owner's side this is still one form, one submit, one step.
+      if (imageFile) {
+        try {
+          const formData = new FormData();
+          formData.append("file", imageFile);
+          await api.upload(`/restaurant/me/products/${created.id}/images`, formData);
+        } catch (imgErr) {
+          setCreateError(`Product created, but the photo failed to upload: ${getErrorMessage(imgErr)}`);
+        }
+      }
+
       setName("");
       setDescription("");
       setBasePrice("");
+      clearImageSelection();
       reload();
     } catch (err) {
       setCreateError(getErrorMessage(err));
@@ -148,6 +196,35 @@ export default function RestaurantProductsPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+            </div>
+            <div className="col-span-2 flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Photo (optional)</label>
+              <div className="flex items-center gap-3">
+                {imagePreviewUrl ? (
+                  <div className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- local object URL for an unsaved file, not a static/remote asset */}
+                    <img src={imagePreviewUrl} alt="Selected product photo" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      aria-label="Remove selected photo"
+                      onClick={clearImageSelection}
+                      className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-500 hover:border-slate-400 hover:text-slate-700"
+                  >
+                    + Add photo
+                  </button>
+                )}
+                <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageSelected} />
+                <p className="text-xs text-slate-400">JPEG, PNG, or WebP, up to 5MB. You can also add or change this later.</p>
+              </div>
             </div>
           </div>
           <Button type="submit" loading={creating}>
