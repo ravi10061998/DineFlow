@@ -9,6 +9,7 @@ import { RefreshToken } from "./entities/refresh-token.entity";
 import { VerificationToken } from "./entities/verification-token.entity";
 import { UsersModule } from "../users/users.module";
 import { RolesModule } from "../roles/roles.module";
+import { NotificationGatewayModule } from "../notification-gateway/notification-gateway.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RolesModule } from "../roles/roles.module";
     JwtModule.register({}), // secret/expiry passed explicitly per sign() call in AuthService
     UsersModule,
     RolesModule,
+    NotificationGatewayModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

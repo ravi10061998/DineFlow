@@ -11,12 +11,13 @@ import { SubscriptionEvent, SubscriptionEventType } from "./entities/subscriptio
 import { CreatePlanDto } from "./dto/create-plan.dto";
 import { UpdatePlanDto } from "./dto/update-plan.dto";
 import { UpdateTrialSettingsDto } from "./dto/update-trial-settings.dto";
-import { RestaurantStatus } from "../restaurants/entities/restaurant.entity";
+import { Restaurant, RestaurantStatus } from "../restaurants/entities/restaurant.entity";
 import {
   RESTAURANT_STATUS_CHANGED_EVENT,
   RestaurantStatusChangedEvent,
 } from "../../common/events/restaurant-status-changed.event";
 import { SubscriptionErrors } from "../../common/exceptions/business.exception";
+import { NotificationDispatchService } from "../notification-gateway/notification-dispatch.service";
 
 @Injectable()
 export class SubscriptionsService {
@@ -28,6 +29,10 @@ export class SubscriptionsService {
     @InjectRepository(RestaurantSubscription)
     private readonly subscriptionsRepository: Repository<RestaurantSubscription>,
     @InjectRepository(SubscriptionEvent) private readonly eventsRepository: Repository<SubscriptionEvent>,
+    // Read-only lookup for the trial-reminder email's recipient — injected directly rather than
+    // importing the full RestaurantsModule, the same pattern Reviews/Store already established.
+    @InjectRepository(Restaurant) private readonly restaurantsRepository: Repository<Restaurant>,
+    private readonly notificationDispatchService: NotificationDispatchService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -312,7 +317,16 @@ export class SubscriptionsService {
         metadata: { daysRemaining },
       }),
     );
-    // Notifications module (§29) isn't built yet — log so the flow is testable end-to-end.
-    console.log(`[trial-reminder] restaurant=${restaurantId} daysRemaining=${daysRemaining}`);
+
+    const restaurant = await this.restaurantsRepository.findOne({ where: { id: restaurantId } });
+    if (!restaurant) return; // shouldn't happen (FK-backed), but a notification is never worth throwing over
+    await this.notificationDispatchService.sendEmail(
+      {
+        to: restaurant.email,
+        subject: `Your DineFlow trial ends in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`,
+        body: `Hi ${restaurant.ownerFullName}, your free trial for ${restaurant.name} ends in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}. Subscribe to a plan to keep taking orders without interruption.`,
+      },
+      { relatedType: "TRIAL_REMINDER", relatedId: restaurantId },
+    );
   }
 }

@@ -15,6 +15,7 @@ import { LoginDto } from "./dto/login.dto";
 import { AuthErrors, SystemErrors } from "../../common/exceptions/business.exception";
 import { AccessTokenPayload } from "./strategies/jwt.strategy";
 import { comparePassword, hashPassword } from "../../common/utils/password.util";
+import { NotificationDispatchService } from "../notification-gateway/notification-dispatch.service";
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
 const EMAIL_VERIFICATION_TTL_HOURS = 24;
@@ -40,6 +41,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
     @InjectRepository(RefreshToken) private readonly refreshTokensRepository: Repository<RefreshToken>,
     @InjectRepository(VerificationToken) private readonly verificationTokensRepository: Repository<VerificationToken>,
+    private readonly notificationDispatchService: NotificationDispatchService,
   ) {}
 
   private hashToken(rawToken: string): string {
@@ -194,6 +196,7 @@ export class AuthService {
   }
 
   async requestEmailVerification(userId: string): Promise<void> {
+    const user = await this.usersService.findById(userId);
     const rawToken = this.generateRawToken();
     const verificationToken = this.verificationTokensRepository.create({
       userId,
@@ -202,8 +205,14 @@ export class AuthService {
       expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_HOURS * 60 * 60 * 1000),
     });
     await this.verificationTokensRepository.save(verificationToken);
-    // Notifications module (§29) isn't built yet — log so the flow is testable end-to-end.
-    console.log(`[email-verification] user=${userId} token=${rawToken}`);
+    // The raw token goes straight into the email body — a real product would put it in a link,
+    // not log it — but this IS effectively "the link" for a mock gateway with no real email client
+    // to click through: the delivery log at /admin/notification-deliveries is how the dev flow
+    // stays testable end-to-end.
+    await this.notificationDispatchService.sendEmail(
+      { to: user.email, subject: "Verify your email", body: `Your verification code is ${rawToken}. It expires in ${EMAIL_VERIFICATION_TTL_HOURS} hours.` },
+      { relatedType: "EMAIL_VERIFICATION", relatedId: userId },
+    );
   }
 
   async confirmEmailVerification(rawToken: string): Promise<void> {
@@ -234,7 +243,10 @@ export class AuthService {
       expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000),
     });
     await this.verificationTokensRepository.save(resetToken);
-    console.log(`[password-reset] user=${user.id} token=${rawToken}`);
+    await this.notificationDispatchService.sendEmail(
+      { to: user.email, subject: "Reset your password", body: `Your password reset code is ${rawToken}. It expires in ${PASSWORD_RESET_TTL_MINUTES} minutes.` },
+      { relatedType: "PASSWORD_RESET", relatedId: user.id },
+    );
   }
 
   async resetPassword(rawToken: string, newPassword: string): Promise<void> {

@@ -42,6 +42,7 @@ import { DeliveryFeeModule } from "./modules/delivery-fee/delivery-fee.module";
 import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/delivery-partner-ledger.module";
 import { CouponsModule } from "./modules/coupons/coupons.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { NotificationGatewayModule } from "./modules/notification-gateway/notification-gateway.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -57,6 +58,7 @@ import { AppController } from "./app.controller";
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     UsersModule,
     RolesModule,
+    NotificationGatewayModule,
     AuthModule,
     RestaurantsModule,
     SubscriptionsModule,

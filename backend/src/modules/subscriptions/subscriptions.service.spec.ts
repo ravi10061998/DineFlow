@@ -6,20 +6,36 @@ import { SubscriptionPlan, BillingInterval, CommissionType } from "./entities/su
 import { TrialSettings } from "./entities/trial-settings.entity";
 import { RestaurantSubscription, SubscriptionStatus } from "./entities/restaurant-subscription.entity";
 import { SubscriptionEvent } from "./entities/subscription-event.entity";
-import { RestaurantStatus } from "../restaurants/entities/restaurant.entity";
+import { Restaurant, RestaurantStatus } from "../restaurants/entities/restaurant.entity";
 import { RestaurantStatusChangedEvent } from "../../common/events/restaurant-status-changed.event";
+import { NotificationDispatchService } from "../notification-gateway/notification-dispatch.service";
 
 describe("SubscriptionsService", () => {
   let service: SubscriptionsService;
   let plansRepo: { remove: jest.Mock; findOne: jest.Mock };
   let trialSettingsRepo: { find: jest.Mock };
   let subscriptionsRepo: { findOne: jest.Mock; find: jest.Mock; count: jest.Mock };
+  let eventsRepo: { find: jest.Mock; create: jest.Mock; save: jest.Mock; createQueryBuilder: jest.Mock };
+  let restaurantsRepo: { findOne: jest.Mock };
+  let notificationDispatchService: { sendEmail: jest.Mock };
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
     plansRepo = { remove: jest.fn(), findOne: jest.fn() };
     trialSettingsRepo = { find: jest.fn() };
     subscriptionsRepo = { findOne: jest.fn(), find: jest.fn(), count: jest.fn() };
+    eventsRepo = {
+      find: jest.fn(),
+      create: jest.fn((x) => x),
+      save: jest.fn(async (x) => x),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getExists: jest.fn().mockResolvedValue(false),
+      }),
+    };
+    restaurantsRepo = { findOne: jest.fn() };
+    notificationDispatchService = { sendEmail: jest.fn() };
     dataSource = { transaction: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
@@ -28,7 +44,9 @@ describe("SubscriptionsService", () => {
         { provide: getRepositoryToken(SubscriptionPlan), useValue: plansRepo },
         { provide: getRepositoryToken(TrialSettings), useValue: trialSettingsRepo },
         { provide: getRepositoryToken(RestaurantSubscription), useValue: subscriptionsRepo },
-        { provide: getRepositoryToken(SubscriptionEvent), useValue: { find: jest.fn(), exists: jest.fn() } },
+        { provide: getRepositoryToken(SubscriptionEvent), useValue: eventsRepo },
+        { provide: getRepositoryToken(Restaurant), useValue: restaurantsRepo },
+        { provide: NotificationDispatchService, useValue: notificationDispatchService },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -138,6 +156,38 @@ describe("SubscriptionsService", () => {
       plansRepo.findOne.mockResolvedValue({ id: "plan-old", isActive: false });
 
       await expect(service.subscribe("r1", "plan-old")).rejects.toMatchObject({ code: "PLAN_NOT_ACTIVE" });
+    });
+  });
+
+  describe("processTrialLifecycle (reminder emails)", () => {
+    it("dispatches a reminder email to the restaurant's own contact address on a scheduled day", async () => {
+      trialSettingsRepo.find.mockResolvedValue([{ isEnabled: true, trialDurationDays: 14, reminderScheduleDays: [3] }]);
+      const trialEndsAt = new Date(Date.now() + 2.5 * 24 * 60 * 60 * 1000); // Math.ceil(2.5) = 3 days remaining
+      subscriptionsRepo.find.mockResolvedValue([{ id: "sub1", restaurantId: "r1", status: SubscriptionStatus.TRIAL, trialEndsAt }]);
+      restaurantsRepo.findOne.mockResolvedValue({ id: "r1", name: "Test Diner", ownerFullName: "Owner", email: "diner@test.local" });
+
+      await service.processTrialLifecycle();
+
+      expect(notificationDispatchService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "diner@test.local" }),
+        { relatedType: "TRIAL_REMINDER", relatedId: "r1" },
+      );
+    });
+
+    it("never sends a second reminder for the same day-count once one was already recorded", async () => {
+      trialSettingsRepo.find.mockResolvedValue([{ isEnabled: true, trialDurationDays: 14, reminderScheduleDays: [3] }]);
+      const trialEndsAt = new Date(Date.now() + 2.5 * 24 * 60 * 60 * 1000);
+      subscriptionsRepo.find.mockResolvedValue([{ id: "sub1", restaurantId: "r1", status: SubscriptionStatus.TRIAL, trialEndsAt }]);
+      eventsRepo.createQueryBuilder.mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getExists: jest.fn().mockResolvedValue(true), // already sent
+      });
+
+      await service.processTrialLifecycle();
+
+      expect(notificationDispatchService.sendEmail).not.toHaveBeenCalled();
+      expect(restaurantsRepo.findOne).not.toHaveBeenCalled();
     });
   });
 });

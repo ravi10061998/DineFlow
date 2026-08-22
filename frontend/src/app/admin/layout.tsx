@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/webhooks", label: "Webhooks" },
+  { href: "/admin/notification-deliveries", label: "Notification Deliveries" },
   { href: "/admin/refunds", label: "Refunds" },
   { href: "/admin/settlements", label: "Settlements" },
   { href: "/admin/payouts", label: "Payouts" },

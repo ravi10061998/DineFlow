@@ -11,12 +11,15 @@ import { RefreshToken } from "./entities/refresh-token.entity";
 import { VerificationToken } from "./entities/verification-token.entity";
 import { User, UserStatus } from "../users/entities/user.entity";
 import { BusinessException } from "../../common/exceptions/business.exception";
+import { NotificationDispatchService } from "../notification-gateway/notification-dispatch.service";
 
 describe("AuthService", () => {
   let authService: AuthService;
   let usersService: jest.Mocked<Pick<UsersService, "findByEmail" | "touchLastLogin" | "create" | "findById">>;
   let refreshTokensRepo: { save: jest.Mock; create: jest.Mock; update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let notificationDispatchService: { sendEmail: jest.Mock; sendSms: jest.Mock };
+  let verificationTokensRepo: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock };
 
   const baseUser = (overrides: Partial<User> = {}): User =>
     ({
@@ -39,6 +42,8 @@ describe("AuthService", () => {
     };
     refreshTokensRepo = { save: jest.fn((x) => x), create: jest.fn((x) => x), update: jest.fn() };
     dataSource = { transaction: jest.fn() };
+    notificationDispatchService = { sendEmail: jest.fn(), sendSms: jest.fn() };
+    verificationTokensRepo = { create: jest.fn((x) => x), save: jest.fn(), findOne: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -49,7 +54,8 @@ describe("AuthService", () => {
         { provide: ConfigService, useValue: { get: jest.fn((key: string) => (key === "JWT_ACCESS_EXPIRES_IN" ? "15m" : "secret")) } },
         { provide: DataSource, useValue: dataSource },
         { provide: getRepositoryToken(RefreshToken), useValue: refreshTokensRepo },
-        { provide: getRepositoryToken(VerificationToken), useValue: { create: jest.fn((x) => x), save: jest.fn(), findOne: jest.fn() } },
+        { provide: getRepositoryToken(VerificationToken), useValue: verificationTokensRepo },
+        { provide: NotificationDispatchService, useValue: notificationDispatchService },
       ],
     }).compile();
 
@@ -122,6 +128,40 @@ describe("AuthService", () => {
         RefreshToken,
         { familyId: "family-1", revokedAt: null },
         { revokedAt: expect.any(Date) },
+      );
+    });
+  });
+
+  describe("requestEmailVerification", () => {
+    it("dispatches a verification email to the user's own address, tagged for the delivery log", async () => {
+      usersService.findById.mockResolvedValue(baseUser({ id: "user-1", email: "casey@example.com" }));
+
+      await authService.requestEmailVerification("user-1");
+
+      expect(notificationDispatchService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "casey@example.com", subject: "Verify your email" }),
+        { relatedType: "EMAIL_VERIFICATION", relatedId: "user-1" },
+      );
+    });
+  });
+
+  describe("forgotPassword", () => {
+    it("never dispatches an email for an unknown address — must not reveal whether it exists", async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      await authService.forgotPassword("nobody@example.com");
+
+      expect(notificationDispatchService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("dispatches a reset email for a known address", async () => {
+      usersService.findByEmail.mockResolvedValue(baseUser({ id: "user-1", email: "casey@example.com" }));
+
+      await authService.forgotPassword("casey@example.com");
+
+      expect(notificationDispatchService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "casey@example.com", subject: "Reset your password" }),
+        { relatedType: "PASSWORD_RESET", relatedId: "user-1" },
       );
     });
   });
