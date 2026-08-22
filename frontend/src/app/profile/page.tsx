@@ -13,7 +13,15 @@ import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/text-field";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { ProfilePhoto } from "@/components/profile-photo";
+import { PortalHero } from "@/components/ui/portal-hero";
 import { AddressList } from "./address-list";
+
+const QUICK_LINKS = [
+  { href: "/", icon: "🏠", label: "Home" },
+  { href: "/restaurants", icon: "🔎", label: "Browse restaurants" },
+  { href: "/orders", icon: "🧾", label: "My orders" },
+  { href: "/favorites", icon: "❤️", label: "Favorites" },
+] as const;
 
 const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: "MALE", label: "Male" },
@@ -116,8 +124,20 @@ function ProfilePageContent() {
       </header>
 
       <main className="mx-auto max-w-xl px-6 py-10">
-        <h1 className="text-2xl font-semibold text-slate-900">My Profile</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your account details and photo.</p>
+        <PortalHero title={`Welcome back, ${profile?.fullName ?? "there"}`} subtitle="Manage your account details, photo, and saved addresses." />
+
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {QUICK_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="group rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            >
+              <span className="text-xl">{link.icon}</span>
+              <p className="mt-1 text-xs font-medium text-slate-700 group-hover:text-orange-700">{link.label}</p>
+            </Link>
+          ))}
+        </div>
 
         <ErrorBanner message={error} />
 
@@ -125,7 +145,7 @@ function ProfilePageContent() {
           <p className="mt-6 text-slate-500">Loading…</p>
         ) : (
           <div className="mt-6 space-y-6">
-            <div className="rounded-lg border border-slate-200 bg-white p-6">
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-sm font-semibold text-slate-700">Profile photo</h2>
               <ProfilePhoto
                 hasPhoto={!!profile?.profilePhoto}
@@ -136,7 +156,7 @@ function ProfilePageContent() {
               <ErrorBanner message={photoError} />
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+            <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-sm font-semibold text-slate-700">Account details</h2>
               <TextField label="Email" value={profile?.email ?? ""} disabled />
               <TextField label="Full name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />

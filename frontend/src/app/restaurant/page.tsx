@@ -1,11 +1,22 @@
 "use client";
 
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
 import type { Restaurant } from "@/lib/types";
 import type { EffectiveCommission } from "@/lib/commission-types";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { PortalHero } from "@/components/ui/portal-hero";
+
+const QUICK_ACTIONS = [
+  { href: "/restaurant/categories", icon: "🗂️", label: "Menu Categories", description: "Organize your menu into sections" },
+  { href: "/restaurant/products", icon: "🍽️", label: "Products", description: "Add dishes, variants & add-ons" },
+  { href: "/restaurant/orders", icon: "🧾", label: "Orders", description: "Fulfill incoming orders" },
+  { href: "/restaurant/ledger", icon: "💰", label: "Ledger", description: "Track your running balance" },
+  { href: "/restaurant/subscription", icon: "⭐", label: "Subscription", description: "Manage your plan" },
+] as const;
 
 const SOURCE_LABEL: Record<EffectiveCommission["source"], string> = {
   RESTAURANT_OVERRIDE: "Negotiated rate",
@@ -21,7 +32,7 @@ function CommissionCard() {
   if (!commission) return null;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-sm font-medium text-slate-500">Current commission rate</h2>
       <p className="mt-1 text-2xl font-bold text-slate-900">
         {commission.commissionValue}
@@ -33,6 +44,7 @@ function CommissionCard() {
 }
 
 export default function RestaurantDashboardPage() {
+  const { user } = useAuth();
   const { data: restaurant, loading, error } = useApiQuery(() => api.get<Restaurant>("/restaurant/me"));
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
@@ -40,14 +52,15 @@ export default function RestaurantDashboardPage() {
   if (!restaurant) return null;
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{restaurant.name}</h1>
-          <StatusBadge status={restaurant.status} />
-        </div>
-        <p className="mt-1 text-slate-500">/{restaurant.slug}</p>
-      </div>
+    <div className="max-w-3xl space-y-8">
+      <PortalHero
+        title={`Welcome, ${user?.fullName ?? restaurant.ownerFullName}`}
+        subtitle={
+          <span className="inline-flex items-center gap-2">
+            {restaurant.name} <StatusBadge status={restaurant.status} />
+          </span>
+        }
+      />
 
       {restaurant.status === "PENDING" && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -66,29 +79,49 @@ export default function RestaurantDashboardPage() {
         </div>
       )}
 
+      <div>
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Quick actions</h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {QUICK_ACTIONS.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            >
+              <span className="text-2xl">{action.icon}</span>
+              <p className="mt-2 text-sm font-semibold text-slate-900 group-hover:text-orange-700">{action.label}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{action.description}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* Only restaurants that have been approved at least once have a subscription/commission to show. */}
       {(restaurant.status === "APPROVED" || restaurant.status === "SUSPENDED") && <CommissionCard />}
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-white p-6 text-sm">
-        <div>
-          <dt className="text-slate-500">Owner</dt>
-          <dd className="text-slate-900">{restaurant.ownerFullName}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">Contact</dt>
-          <dd className="text-slate-900">
-            {restaurant.email} · {restaurant.phone}
-          </dd>
-        </div>
-        <div className="col-span-2">
-          <dt className="text-slate-500">Address</dt>
-          <dd className="text-slate-900">
-            {restaurant.addressLine1}
-            {restaurant.addressLine2 ? `, ${restaurant.addressLine2}` : ""}, {restaurant.city}, {restaurant.state}{" "}
-            {restaurant.postalCode}, {restaurant.country}
-          </dd>
-        </div>
-      </dl>
+      <div>
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Restaurant details</h2>
+        <dl className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-white p-6 text-sm shadow-sm">
+          <div>
+            <dt className="text-slate-500">Owner</dt>
+            <dd className="text-slate-900">{restaurant.ownerFullName}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Contact</dt>
+            <dd className="text-slate-900">
+              {restaurant.email} · {restaurant.phone}
+            </dd>
+          </div>
+          <div className="col-span-2">
+            <dt className="text-slate-500">Address</dt>
+            <dd className="text-slate-900">
+              {restaurant.addressLine1}
+              {restaurant.addressLine2 ? `, ${restaurant.addressLine2}` : ""}, {restaurant.city}, {restaurant.state}{" "}
+              {restaurant.postalCode}, {restaurant.country}
+            </dd>
+          </div>
+        </dl>
+      </div>
     </div>
   );
 }

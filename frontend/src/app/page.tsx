@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 import { useAuth } from "@/lib/auth-context";
@@ -19,9 +20,25 @@ import { OfferCard } from "@/components/home/offer-card";
 import { OrderAgainCard } from "@/components/home/order-again-card";
 import { BlogCard } from "@/components/home/blog-card";
 
+// Admin and restaurant staff have their own dashboard "home" — landing them in the
+// customer marketplace first, with just a small header link out, made their own
+// portal feel like an afterthought. This is a plain lookup table (not role.startsWith
+// string matching scattered around) so adding a role later means one line here.
+const PORTAL_HOME: Record<string, string> = {
+  ADMIN: "/admin",
+  RESTAURANT_ADMIN: "/restaurant",
+  RESTAURANT_STAFF: "/restaurant",
+};
+
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const isCustomer = user?.role === "CUSTOMER";
+  const portalHome = user ? PORTAL_HOME[user.role] : undefined;
+
+  useEffect(() => {
+    if (!authLoading && portalHome) router.replace(portalHome);
+  }, [authLoading, portalHome, router]);
 
   // The bulk of the fold loads as one aggregate call (GET /store/home) for
   // performance — it's a single independently-retryable unit. Personalization
@@ -106,6 +123,12 @@ export default function Home() {
   // The cuisine strip is a browse affordance, not a filter: products/restaurants aren't
   // tagged with a food category anywhere in the schema yet, so `selectedCategory` only
   // drives the strip's own highlight state rather than pretending to filter results below.
+
+  // While auth is still resolving, or an admin/restaurant user is being bounced to their
+  // own dashboard, don't flash the customer storefront underneath them first.
+  if (authLoading || portalHome) {
+    return <div className="min-h-screen bg-slate-50" />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-16 sm:pb-0">
