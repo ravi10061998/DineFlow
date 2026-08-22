@@ -78,9 +78,22 @@ function OrderDetailContent() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm font-semibold text-slate-900">
-                <span>Total</span>
-                <span>₹{order.totalAmount}</span>
+              <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Subtotal</span>
+                  <span>₹{order.subtotal}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>
+                    Delivery fee
+                    {order.deliveryDistanceKm && <span className="text-xs text-slate-400"> ({order.deliveryDistanceKm} km)</span>}
+                  </span>
+                  <span>{Number(order.deliveryFee) === 0 ? "Free" : `₹${order.deliveryFee}`}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-100 pt-1 font-semibold text-slate-900">
+                  <span>Total</span>
+                  <span>₹{order.totalAmount}</span>
+                </div>
               </div>
             </div>
 

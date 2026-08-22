@@ -10,9 +10,18 @@ import { AdminOrdersController } from "./admin-orders.controller";
 import { CartModule } from "../cart/cart.module";
 import { AddressesModule } from "../addresses/addresses.module";
 import { CommissionModule } from "../commission/commission.module";
+import { RestaurantsModule } from "../restaurants/restaurants.module";
+import { DeliveryFeeModule } from "../delivery-fee/delivery-fee.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, OrderStatusHistory]), CartModule, AddressesModule, CommissionModule],
+  imports: [
+    TypeOrmModule.forFeature([Order, OrderItem, OrderStatusHistory]),
+    CartModule,
+    AddressesModule,
+    CommissionModule,
+    RestaurantsModule,
+    DeliveryFeeModule,
+  ],
   controllers: [CustomerOrdersController, RestaurantOrdersController, AdminOrdersController],
   providers: [OrdersService],
   // Exported so Payments can look up an order (ownership + current status) as part of its own flow.

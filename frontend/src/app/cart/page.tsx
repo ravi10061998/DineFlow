@@ -11,6 +11,7 @@ import { getErrorMessage } from "@/lib/errors";
 import type { Cart } from "@/lib/cart-types";
 import type { CustomerAddress } from "@/lib/address-types";
 import type { Order } from "@/lib/order-types";
+import type { DeliveryFeeEstimate } from "@/lib/delivery-fee-types";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 
@@ -23,12 +24,27 @@ function CartPageContent() {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [feeEstimate, setFeeEstimate] = useState<DeliveryFeeEstimate | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
 
   useEffect(() => {
     if (!selectedAddressId && addresses && addresses.length > 0) {
       setSelectedAddressId(addresses.find((a) => a.isDefault)?.id ?? addresses[0].id);
     }
   }, [addresses, selectedAddressId]);
+
+  useEffect(() => {
+    if (!selectedAddressId || !cart || cart.items.length === 0) {
+      setFeeEstimate(null);
+      return;
+    }
+    setFeeLoading(true);
+    api
+      .get<DeliveryFeeEstimate>(`/customer/me/orders/delivery-fee-preview?addressId=${selectedAddressId}`)
+      .then(setFeeEstimate)
+      .catch(() => setFeeEstimate(null)) // a failed estimate shouldn't block checkout — the real fee is still computed server-side there
+      .finally(() => setFeeLoading(false));
+  }, [selectedAddressId, cart]);
 
   async function handleCheckout() {
     if (!selectedAddressId) return;
@@ -152,9 +168,24 @@ function CartPageContent() {
               ))}
             </ul>
 
-            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
-              <span className="font-medium text-slate-700">Subtotal</span>
-              <span className="text-lg font-semibold text-slate-900">₹{cart?.subtotal}</span>
+            <div className="space-y-1 rounded-lg border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Subtotal</span>
+                <span>₹{cart?.subtotal}</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span>
+                  Delivery fee
+                  {feeEstimate?.distanceKm && <span className="text-xs text-slate-400"> ({feeEstimate.distanceKm} km)</span>}
+                </span>
+                <span>
+                  {feeLoading ? "…" : feeEstimate ? (Number(feeEstimate.fee) === 0 ? "Free" : `₹${feeEstimate.fee}`) : "Estimated at checkout"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-1 text-lg font-semibold text-slate-900">
+                <span>Total</span>
+                <span>₹{(Number(cart?.subtotal ?? 0) + Number(feeEstimate?.fee ?? 0)).toFixed(2)}</span>
+              </div>
             </div>
 
             <ErrorBanner message={addressesError} />

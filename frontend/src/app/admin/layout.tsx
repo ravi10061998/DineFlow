@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: "/admin/restaurants", label: "Restaurants" },
   { href: "/admin/delivery-partners", label: "Delivery Partners" },
   { href: "/admin/delivery-assignments", label: "Delivery Assignments" },
+  { href: "/admin/delivery-fee", label: "Delivery Fee Settings" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/webhooks", label: "Webhooks" },

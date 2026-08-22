@@ -35,6 +35,8 @@ export interface Order {
   subtotal: string;
   commissionAmount: string;
   restaurantPayoutAmount: string;
+  deliveryFee: string;
+  deliveryDistanceKm: string | null;
   totalAmount: string;
   status: OrderStatus;
   paymentStatus: string;

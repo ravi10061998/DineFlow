@@ -96,7 +96,15 @@ export class Order extends BaseEntity {
   @Column({ name: "restaurant_payout_amount", type: "decimal", precision: 10, scale: 2 })
   restaurantPayoutAmount!: string;
 
-  /** = subtotal today — delivery fee (Delivery module) and discounts (Coupons module) will extend this later. */
+  /** baseFee + perKmRate × distance at checkout time (Module 21) — see DeliveryFeeService. Not part of the restaurant's payout; the fee belongs to delivery, not food revenue. */
+  @Column({ name: "delivery_fee", type: "decimal", precision: 10, scale: 2, default: 0 })
+  deliveryFee!: string;
+
+  /** Null when either the restaurant or the delivery address lacked coordinates — the fee then fell back to a flat base rate. */
+  @Column({ name: "delivery_distance_km", type: "decimal", precision: 6, scale: 2, nullable: true })
+  deliveryDistanceKm!: string | null;
+
+  /** = subtotal + deliveryFee today — discounts (Coupons module) will extend this later. */
   @Column({ name: "total_amount", type: "decimal", precision: 10, scale: 2 })
   totalAmount!: string;
 

@@ -11,6 +11,8 @@ import { CartItem } from "../cart/entities/cart-item.entity";
 import { CartService } from "../cart/cart.service";
 import { AddressesService } from "../addresses/addresses.service";
 import { CommissionService } from "../commission/commission.service";
+import { RestaurantsService } from "../restaurants/restaurants.service";
+import { DeliveryFeeService } from "../delivery-fee/delivery-fee.service";
 import { OrderErrors } from "../../common/exceptions/business.exception";
 
 /** Valid order fulfillment transitions. DELIVERED and CANCELLED are terminal. */
@@ -33,6 +35,8 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly addressesService: AddressesService,
     private readonly commissionService: CommissionService,
+    private readonly restaurantsService: RestaurantsService,
+    private readonly deliveryFeeService: DeliveryFeeService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -57,6 +61,26 @@ export class OrdersService {
     return order;
   }
 
+  /**
+   * Lets the cart page show a real delivery-fee estimate before the customer commits —
+   * same calculation checkout itself will use, just without creating anything.
+   */
+  async previewDeliveryFee(customerId: string, deliveryAddressId: string) {
+    const cart = await this.cartService.getCart(customerId);
+    if (cart.items.length === 0 || !cart.restaurantId) {
+      throw OrderErrors.cartEmpty();
+    }
+    const address = await this.addressesService.findOneOrThrow(deliveryAddressId, customerId);
+    const restaurant = await this.restaurantsService.findByIdOrThrow(cart.restaurantId);
+    return this.deliveryFeeService.calculate({
+      restaurantLat: restaurant.latitude,
+      restaurantLng: restaurant.longitude,
+      addressLat: address.latitude,
+      addressLng: address.longitude,
+      subtotal: Number(cart.subtotal),
+    });
+  }
+
   async checkout(customerId: string, deliveryAddressId: string): Promise<Order> {
     const cart = await this.cartService.getCart(customerId);
     if (cart.items.length === 0 || !cart.restaurantId) {
@@ -67,7 +91,19 @@ export class OrdersService {
     }
 
     const address = await this.addressesService.findOneOrThrow(deliveryAddressId, customerId);
+    const restaurant = await this.restaurantsService.findByIdOrThrow(cart.restaurantId);
     const commission = await this.commissionService.calculateCommission(cart.restaurantId, Number(cart.subtotal));
+    // Delivery fee is computed off subtotal only and never feeds the restaurant's payout — it's a
+    // delivery-domain charge, not food revenue. Module 20 (Delivery Assignment)'s partner-facing
+    // ledger is a later module; this order-level snapshot is the fee the CUSTOMER paid, full stop.
+    const deliveryFee = await this.deliveryFeeService.calculate({
+      restaurantLat: restaurant.latitude,
+      restaurantLng: restaurant.longitude,
+      addressLat: address.latitude,
+      addressLng: address.longitude,
+      subtotal: Number(cart.subtotal),
+    });
+    const totalAmount = (Number(cart.subtotal) + Number(deliveryFee.fee)).toFixed(2);
 
     const order = await this.dataSource.transaction(async (manager) => {
       const created = manager.create(Order, {
@@ -87,7 +123,9 @@ export class OrdersService {
         subtotal: cart.subtotal,
         commissionAmount: commission.platformAmount.toFixed(2),
         restaurantPayoutAmount: commission.restaurantAmount.toFixed(2),
-        totalAmount: cart.subtotal, // no delivery fee/discount yet — Delivery + Coupons modules will extend this
+        deliveryFee: deliveryFee.fee,
+        deliveryDistanceKm: deliveryFee.distanceKm !== null ? String(deliveryFee.distanceKm) : null,
+        totalAmount, // subtotal + deliveryFee — discounts (Coupons module) will extend this later
         status: OrderStatus.PLACED,
       });
       const savedOrder = await manager.save(created);

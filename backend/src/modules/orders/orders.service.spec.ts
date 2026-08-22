@@ -9,6 +9,8 @@ import { OrderStatusHistory } from "./entities/order-status-history.entity";
 import { CartService } from "../cart/cart.service";
 import { AddressesService } from "../addresses/addresses.service";
 import { CommissionService } from "../commission/commission.service";
+import { RestaurantsService } from "../restaurants/restaurants.service";
+import { DeliveryFeeService } from "../delivery-fee/delivery-fee.service";
 
 describe("OrdersService", () => {
   let service: OrdersService;
@@ -16,6 +18,8 @@ describe("OrdersService", () => {
   let cartService: { getCart: jest.Mock };
   let addressesService: { findOneOrThrow: jest.Mock };
   let commissionService: { calculateCommission: jest.Mock };
+  let restaurantsService: { findByIdOrThrow: jest.Mock };
+  let deliveryFeeService: { calculate: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
 
@@ -52,6 +56,8 @@ describe("OrdersService", () => {
     state: "TS",
     postalCode: "123456",
     country: "IN",
+    latitude: null,
+    longitude: null,
   };
 
   beforeEach(async () => {
@@ -64,6 +70,8 @@ describe("OrdersService", () => {
     cartService = { getCart: jest.fn().mockResolvedValue(fullCart) };
     addressesService = { findOneOrThrow: jest.fn().mockResolvedValue(address) };
     commissionService = { calculateCommission: jest.fn().mockResolvedValue({ amount: 340, platformAmount: 34, restaurantAmount: 306 }) };
+    restaurantsService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: "r1", latitude: null, longitude: null }) };
+    deliveryFeeService = { calculate: jest.fn().mockResolvedValue({ fee: "20.00", distanceKm: null }) };
     dataSource = { transaction: jest.fn() };
     eventEmitter = { emit: jest.fn() };
 
@@ -74,6 +82,8 @@ describe("OrdersService", () => {
         { provide: CartService, useValue: cartService },
         { provide: AddressesService, useValue: addressesService },
         { provide: CommissionService, useValue: commissionService },
+        { provide: RestaurantsService, useValue: restaurantsService },
+        { provide: DeliveryFeeService, useValue: deliveryFeeService },
         { provide: DataSource, useValue: dataSource },
         { provide: EventEmitter2, useValue: eventEmitter },
       ],
@@ -120,6 +130,9 @@ describe("OrdersService", () => {
         subtotal: "340.00",
         commissionAmount: "34.00",
         restaurantPayoutAmount: "306.00",
+        deliveryFee: "20.00",
+        deliveryDistanceKm: null,
+        totalAmount: "360.00",
         status: OrderStatus.PLACED,
       });
 
@@ -128,6 +141,28 @@ describe("OrdersService", () => {
 
       const savedHistory = savedEntities.find((e) => e.__entity === OrderStatusHistory);
       expect(savedHistory).toMatchObject({ fromStatus: null, toStatus: OrderStatus.PLACED, changedByUserId: "u1" });
+    });
+
+    it("folds a distance-based delivery fee into totalAmount without touching the restaurant's payout", async () => {
+      deliveryFeeService.calculate.mockResolvedValue({ fee: "44.80", distanceKm: 3.1 });
+      const savedEntities: any[] = [];
+      ordersRepo.findOne.mockResolvedValue({ id: "order1", status: OrderStatus.PLACED, items: [] });
+      dataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({
+          create: (Entity: any, data: any) => ({ __entity: Entity, ...data }),
+          save: async (x: any) => {
+            if (Array.isArray(x)) savedEntities.push(...x);
+            else savedEntities.push(x);
+            return Array.isArray(x) ? x : { id: "order1", ...x };
+          },
+          delete: jest.fn(),
+        }),
+      );
+
+      await service.checkout("u1", "addr1");
+
+      const savedOrder = savedEntities.find((e) => e.__entity === Order);
+      expect(savedOrder).toMatchObject({ deliveryFee: "44.80", deliveryDistanceKm: "3.1", totalAmount: "384.80", restaurantPayoutAmount: "306.00" });
     });
   });
 

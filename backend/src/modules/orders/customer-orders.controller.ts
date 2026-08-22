@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CurrentUser, AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { CustomerGuard } from "../customers/guards/customer.guard";
@@ -20,6 +20,12 @@ export class CustomerOrdersController {
   @Get()
   async list(@CurrentUser() user: AuthenticatedUser) {
     return { message: "Orders fetched", data: await this.ordersService.findAllForCustomer(user.userId) };
+  }
+
+  // Declared before ":id" — otherwise ParseUUIDPipe on that route would 400 this literal path first.
+  @Get("delivery-fee-preview")
+  async previewDeliveryFee(@CurrentUser() user: AuthenticatedUser, @Query("addressId", ParseUUIDPipe) addressId: string) {
+    return { message: "Delivery fee estimated", data: await this.ordersService.previewDeliveryFee(user.userId, addressId) };
   }
 
   @Get(":id")
