@@ -20,6 +20,9 @@ const COLORS: Record<string, string> = {
   REFUNDED: "bg-slate-200 text-slate-700",
   CREATED: "bg-amber-100 text-amber-800",
   SUCCEEDED: "bg-green-100 text-green-800",
+  ASSIGNED: "bg-amber-100 text-amber-800",
+  ACCEPTED: "bg-blue-100 text-blue-800",
+  PICKED_UP: "bg-indigo-100 text-indigo-800",
 };
 
 export function StatusBadge({ status }: { status: string }) {

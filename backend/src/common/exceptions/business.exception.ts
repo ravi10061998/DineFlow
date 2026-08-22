@@ -184,6 +184,13 @@ export const PayoutErrors = {
     new BusinessException("PAYOUT_NOT_FAILED", "Only a failed payout can be retried.", HttpStatus.CONFLICT),
 };
 
+export const DeliveryAssignmentErrors = {
+  invalidTransition: (from: string, to: string) =>
+    new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move a delivery assignment from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),
+  invalidOtp: () =>
+    new BusinessException("INVALID_DELIVERY_OTP", "That delivery code doesn't match.", HttpStatus.BAD_REQUEST),
+};
+
 export const DeliveryPartnerErrors = {
   invalidStatusTransition: (from: string, to: string) =>
     new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move a delivery partner from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),

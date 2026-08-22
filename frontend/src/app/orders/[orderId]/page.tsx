@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { PaymentPanel } from "./payment-panel";
+import { DeliveryPanel } from "./delivery-panel";
 
 function OrderDetailContent() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -84,6 +85,7 @@ function OrderDetailContent() {
             </div>
 
             <PaymentPanel order={order} onChanged={reload} />
+            <DeliveryPanel orderId={orderId} />
 
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="mb-2 text-sm font-semibold text-slate-700">Delivering to</h2>

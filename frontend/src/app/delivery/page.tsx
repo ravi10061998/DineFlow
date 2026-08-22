@@ -10,14 +10,24 @@ import { useApiQuery } from "@/lib/use-api-query";
 import { getErrorMessage } from "@/lib/errors";
 import { locationStore } from "@/lib/location-store";
 import type { DeliveryPartner } from "@/lib/delivery-partner-types";
+import type { DeliveryAssignment } from "@/lib/delivery-assignment-types";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { PortalHero } from "@/components/ui/portal-hero";
+import { AssignmentCard } from "./assignment-card";
+
+const ACTIVE_STATUSES = ["ASSIGNED", "ACCEPTED", "PICKED_UP"];
 
 function DeliveryDashboardContent() {
   const { user, logout } = useAuth();
   const { data: partner, loading, error, reload } = useApiQuery(() => api.get<DeliveryPartner>("/delivery-partner/me"));
+  const {
+    data: assignments,
+    loading: assignmentsLoading,
+    error: assignmentsError,
+    reload: reloadAssignments,
+  } = useApiQuery(() => api.get<DeliveryAssignment[]>("/delivery-partner/me/assignments"));
   const [toggling, setToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
@@ -140,6 +150,29 @@ function DeliveryDashboardContent() {
                 <dd className="text-slate-900">{partner.licenseNumber}</dd>
               </div>
             </dl>
+
+            <div>
+              <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Active deliveries</h2>
+              <ErrorBanner message={assignmentsError} />
+              {assignmentsLoading ? (
+                <p className="text-slate-500">Loading…</p>
+              ) : (
+                (() => {
+                  const active = assignments?.filter((a) => ACTIVE_STATUSES.includes(a.status)) ?? [];
+                  return active.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+                      No active deliveries right now — go online to start receiving them.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {active.map((a) => (
+                        <AssignmentCard key={a.id} assignment={a} onChanged={reloadAssignments} />
+                      ))}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
           </>
         ) : null}
       </main>
