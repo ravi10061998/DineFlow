@@ -64,6 +64,8 @@ export interface StoreRestaurant {
   status: string;
   isFeatured: boolean;
   hasLogo: boolean;
+  avgRating: number | null;
+  reviewCount: number;
   distanceKm?: number;
 }
 

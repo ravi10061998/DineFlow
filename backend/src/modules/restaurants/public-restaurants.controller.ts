@@ -5,11 +5,12 @@ import { Public } from "../../common/decorators/public.decorator";
 import { RestaurantsService } from "./restaurants.service";
 import { RestaurantLogoService } from "./restaurant-logo.service";
 import { RestaurantStatus } from "./entities/restaurant.entity";
+import { ReviewsService } from "../reviews/reviews.service";
 
 /**
  * The minimal public "browse" slice needed to make Cart/Orders reachable
- * from a real UI — not the full storefront (search, filters, ratings),
- * which is a later module's scope. Read-only, approved restaurants only.
+ * from a real UI — not the full storefront (search, filters), which is a
+ * later module's scope. Read-only, approved restaurants only.
  */
 @ApiTags("Public - Storefront")
 @Public()
@@ -18,11 +19,13 @@ export class PublicRestaurantsController {
   constructor(
     private readonly restaurantsService: RestaurantsService,
     private readonly logoService: RestaurantLogoService,
+    private readonly reviewsService: ReviewsService,
   ) {}
 
   @Get()
   async list() {
     const restaurants = await this.restaurantsService.findAll(RestaurantStatus.APPROVED);
+    const ratings = await this.reviewsService.getSummaries(restaurants.map((r) => r.id));
     return {
       message: "Restaurants fetched",
       data: restaurants.map((r) => ({
@@ -32,6 +35,8 @@ export class PublicRestaurantsController {
         city: r.city,
         state: r.state,
         hasLogo: !!r.logoPath,
+        avgRating: ratings.get(r.id)?.avgRating ?? null,
+        reviewCount: ratings.get(r.id)?.reviewCount ?? 0,
       })),
     };
   }
@@ -40,6 +45,7 @@ export class PublicRestaurantsController {
   @Get(":id")
   async getOne(@Param("id", ParseUUIDPipe) id: string) {
     const r = await this.restaurantsService.findByIdOrThrow(id);
+    const rating = await this.reviewsService.getSummary(r.id);
     return {
       message: "Restaurant fetched",
       data: {
@@ -50,6 +56,8 @@ export class PublicRestaurantsController {
         city: r.city,
         state: r.state,
         hasLogo: !!r.logoPath,
+        avgRating: rating.avgRating,
+        reviewCount: rating.reviewCount,
       },
     };
   }

@@ -4,8 +4,8 @@ import Link from "next/link";
 import type { StoreRestaurant } from "@/lib/home-types";
 import { FavoriteButton } from "./favorite-button";
 import { RestaurantLogoImage } from "./store-image";
+import { StarRating } from "@/components/ui/star-rating";
 
-/** No star rating is shown — there's no Reviews module yet, and a fabricated number would be worse than none. */
 export function RestaurantCard({ restaurant }: { restaurant: StoreRestaurant }) {
   return (
     <Link
@@ -33,6 +33,7 @@ export function RestaurantCard({ restaurant }: { restaurant: StoreRestaurant }) 
         <p className="truncate text-xs text-slate-500">
           {restaurant.city}, {restaurant.state}
         </p>
+        <StarRating avgRating={restaurant.avgRating} reviewCount={restaurant.reviewCount} />
         {restaurant.distanceKm !== undefined && (
           <p className="mt-1 text-xs font-medium text-orange-600">{restaurant.distanceKm} km away</p>
         )}

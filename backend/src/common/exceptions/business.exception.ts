@@ -216,6 +216,17 @@ export const CouponErrors = {
     new BusinessException("COUPON_TOTAL_LIMIT_REACHED", "This coupon has reached its total redemption limit.", HttpStatus.CONFLICT),
 };
 
+export const ReviewErrors = {
+  orderNotDelivered: () =>
+    new BusinessException(
+      "ORDER_NOT_DELIVERED",
+      "You can only review an order after it has been delivered.",
+      HttpStatus.CONFLICT,
+    ),
+  alreadyReviewed: () =>
+    new BusinessException("ORDER_ALREADY_REVIEWED", "You've already reviewed this order.", HttpStatus.CONFLICT),
+};
+
 export const DeliveryPartnerErrors = {
   invalidStatusTransition: (from: string, to: string) =>
     new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move a delivery partner from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),

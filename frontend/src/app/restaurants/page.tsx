@@ -10,6 +10,7 @@ import { Logo } from "@/components/logo";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { FavoriteButton } from "@/components/home/favorite-button";
 import { RestaurantLogoImage } from "@/components/home/store-image";
+import { StarRating } from "@/components/ui/star-rating";
 
 function BrowseRestaurantsContent() {
   const { data: restaurants, loading, error } = useApiQuery(() => api.get<PublicRestaurant[]>("/restaurants"));
@@ -57,6 +58,7 @@ function BrowseRestaurantsContent() {
                   <p className="text-sm text-slate-500">
                     {r.city}, {r.state}
                   </p>
+                  <StarRating avgRating={r.avgRating} reviewCount={r.reviewCount} />
                 </Link>
                 <FavoriteButton targetType="RESTAURANT" targetId={r.id} />
               </li>

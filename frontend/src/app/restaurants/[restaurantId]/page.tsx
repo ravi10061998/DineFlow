@@ -11,7 +11,9 @@ import { Logo } from "@/components/logo";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { FavoriteButton } from "@/components/home/favorite-button";
 import { RestaurantLogoImage } from "@/components/home/store-image";
+import { StarRating } from "@/components/ui/star-rating";
 import { MenuProductCard } from "./menu-product-card";
+import { ReviewsSection } from "./reviews-section";
 
 export default function RestaurantMenuPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
@@ -55,6 +57,7 @@ export default function RestaurantMenuPage() {
                 {restaurant.city}, {restaurant.state}
               </p>
             )}
+            {restaurant && <StarRating avgRating={restaurant.avgRating} reviewCount={restaurant.reviewCount} size="md" />}
             {restaurant?.description && <p className="mt-1 text-sm text-slate-500">{restaurant.description}</p>}
           </div>
           <FavoriteButton targetType="RESTAURANT" targetId={restaurantId} />
@@ -98,6 +101,8 @@ export default function RestaurantMenuPage() {
             ))}
           </div>
         )}
+
+        <ReviewsSection restaurantId={restaurantId} />
       </main>
     </div>
   );

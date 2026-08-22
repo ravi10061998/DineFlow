@@ -9,6 +9,7 @@ import { BannersService } from "../banners/banners.service";
 import { FoodCategoriesService } from "../food-categories/food-categories.service";
 import { OffersService } from "../offers/offers.service";
 import { BlogsService } from "../blogs/blogs.service";
+import { ReviewsService } from "../reviews/reviews.service";
 
 function makeQueryBuilder(rawResult: unknown[]) {
   const qb: any = {
@@ -51,6 +52,7 @@ describe("StoreService", () => {
         { provide: FoodCategoriesService, useValue: { findActiveForStore: jest.fn() } },
         { provide: OffersService, useValue: { findActiveForStore: jest.fn() } },
         { provide: BlogsService, useValue: { findPublished: jest.fn() } },
+        { provide: ReviewsService, useValue: { getSummaries: jest.fn().mockResolvedValue(new Map()) } },
       ],
     }).compile();
 

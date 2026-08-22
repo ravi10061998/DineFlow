@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { PaymentPanel } from "./payment-panel";
 import { DeliveryPanel } from "./delivery-panel";
+import { ReviewPanel } from "./review-panel";
 
 function OrderDetailContent() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -118,6 +119,8 @@ function OrderDetailContent() {
                 {order.deliveryCity}, {order.deliveryState} {order.deliveryPostalCode}
               </p>
             </div>
+
+            {order.status === "DELIVERED" && <ReviewPanel orderId={orderId} />}
 
             <ErrorBanner message={cancelError} />
             {order.status === "PLACED" && (

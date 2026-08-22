@@ -41,6 +41,7 @@ import { DeliveryAssignmentsModule } from "./modules/delivery-assignments/delive
 import { DeliveryFeeModule } from "./modules/delivery-fee/delivery-fee.module";
 import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/delivery-partner-ledger.module";
 import { CouponsModule } from "./modules/coupons/coupons.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -67,6 +68,7 @@ import { AppController } from "./app.controller";
     AddressesModule,
     CartModule,
     CouponsModule,
+    ReviewsModule,
     OrdersModule,
     PaymentsModule,
     WebhooksModule,

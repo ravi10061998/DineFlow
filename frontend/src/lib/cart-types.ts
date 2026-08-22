@@ -5,6 +5,8 @@ export interface PublicRestaurant {
   city: string;
   state: string;
   hasLogo: boolean;
+  avgRating: number | null;
+  reviewCount: number;
 }
 
 export interface PublicRestaurantDetail extends PublicRestaurant {

@@ -9,6 +9,7 @@ import { BannersService } from "../banners/banners.service";
 import { FoodCategoriesService } from "../food-categories/food-categories.service";
 import { OffersService } from "../offers/offers.service";
 import { BlogsService } from "../blogs/blogs.service";
+import { ReviewsService } from "../reviews/reviews.service";
 
 const DEFAULT_LIMIT = 10;
 const TRENDING_WINDOW_DAYS = 30;
@@ -22,6 +23,8 @@ export interface RestaurantSummary {
   status: RestaurantStatus;
   isFeatured: boolean;
   hasLogo: boolean;
+  avgRating: number | null;
+  reviewCount: number;
   distanceKm?: number;
 }
 
@@ -46,6 +49,7 @@ export class StoreService {
     private readonly foodCategoriesService: FoodCategoriesService,
     private readonly offersService: OffersService,
     private readonly blogsService: BlogsService,
+    private readonly reviewsService: ReviewsService,
   ) {}
 
   async getHome() {
@@ -63,15 +67,16 @@ export class StoreService {
     return { banners, categories, featuredRestaurants, popularRestaurants, popularProducts, trendingProducts, offers, blogs: blogs.items };
   }
 
-  async getFeaturedRestaurants(): Promise<Restaurant[]> {
-    return this.restaurantsRepository.find({
+  async getFeaturedRestaurants(): Promise<RestaurantSummary[]> {
+    const restaurants = await this.restaurantsRepository.find({
       where: { status: RestaurantStatus.APPROVED, isFeatured: true },
       take: DEFAULT_LIMIT,
       order: { createdAt: "DESC" },
     });
+    return this.withRatings(restaurants);
   }
 
-  /** Ranked by real order volume — there's no rating/review data yet (Reviews module isn't built), so this never fabricates a star rating. */
+  /** Ranked by real order volume, not rating — a restaurant with 1 five-star review shouldn't outrank one with 500 solid orders on "popularity." */
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
     const rows = await this.ordersRepository
       .createQueryBuilder("order")
@@ -109,13 +114,16 @@ export class StoreService {
       where: { status: RestaurantStatus.APPROVED },
     });
 
-    return candidates
+    const ranked = candidates
       .filter((r) => r.latitude !== null && r.longitude !== null)
       .map((r) => ({ restaurant: r, distanceKm: this.haversineKm(lat, lng, Number(r.latitude), Number(r.longitude)) }))
       .filter(({ restaurant, distanceKm }) => distanceKm <= Number(restaurant.deliveryRadiusKm))
       .sort((a, b) => a.distanceKm - b.distanceKm)
-      .slice(0, DEFAULT_LIMIT)
-      .map(({ restaurant, distanceKm }) => ({ ...this.toRestaurantSummary(restaurant), distanceKm: Math.round(distanceKm * 10) / 10 }));
+      .slice(0, DEFAULT_LIMIT);
+
+    const summaries = await this.withRatings(ranked.map((r) => r.restaurant));
+    const byId = new Map(summaries.map((s) => [s.id, s]));
+    return ranked.map(({ restaurant, distanceKm }) => ({ ...byId.get(restaurant.id)!, distanceKm: Math.round(distanceKm * 10) / 10 }));
   }
 
   async getPopularProducts(): Promise<ProductSummary[]> {
@@ -174,7 +182,7 @@ export class StoreService {
       this.foodCategoriesService.findActiveForStore().then((all) => all.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))),
     ]);
     return {
-      restaurants: restaurants.map((r) => this.toRestaurantSummary(r)),
+      restaurants: await this.withRatings(restaurants),
       products: products.map((p) => this.toProductSummary(p, 0)),
       categories,
     };
@@ -212,14 +220,14 @@ export class StoreService {
     if (ids.length === 0) return [];
     const restaurants = await this.restaurantsRepository.find({ where: ids.map((id) => ({ id, status: RestaurantStatus.APPROVED })) });
     const byId = new Map(restaurants.map((r) => [r.id, r]));
-    return ids
-      .map((id) => byId.get(id))
-      .filter((r): r is Restaurant => !!r)
-      .map((r) => this.toRestaurantSummary(r));
+    const ordered = ids.map((id) => byId.get(id)).filter((r): r is Restaurant => !!r);
+    return this.withRatings(ordered);
   }
 
-  private toRestaurantSummary(r: Restaurant): RestaurantSummary {
-    return {
+  /** One bulk rating query for however many restaurants are being returned — never N+1, regardless of which listing method called it. */
+  private async withRatings(restaurants: Restaurant[]): Promise<RestaurantSummary[]> {
+    const ratings = await this.reviewsService.getSummaries(restaurants.map((r) => r.id));
+    return restaurants.map((r) => ({
       id: r.id,
       name: r.name,
       slug: r.slug,
@@ -228,7 +236,9 @@ export class StoreService {
       status: r.status,
       isFeatured: r.isFeatured,
       hasLogo: !!r.logoPath,
-    };
+      avgRating: ratings.get(r.id)?.avgRating ?? null,
+      reviewCount: ratings.get(r.id)?.reviewCount ?? 0,
+    }));
   }
 
   private toProductSummary(p: Product, orderCount: number): ProductSummary {

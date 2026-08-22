@@ -11,6 +11,7 @@ import { BannersModule } from "../banners/banners.module";
 import { FoodCategoriesModule } from "../food-categories/food-categories.module";
 import { OffersModule } from "../offers/offers.module";
 import { BlogsModule } from "../blogs/blogs.module";
+import { ReviewsModule } from "../reviews/reviews.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { BlogsModule } from "../blogs/blogs.module";
     FoodCategoriesModule,
     OffersModule,
     BlogsModule,
+    ReviewsModule,
   ],
   controllers: [StoreController, CustomerHomePersonalizationController],
   providers: [StoreService],
