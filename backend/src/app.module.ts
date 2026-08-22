@@ -40,6 +40,7 @@ import { DeliveryPartnersModule } from "./modules/delivery-partners/delivery-par
 import { DeliveryAssignmentsModule } from "./modules/delivery-assignments/delivery-assignments.module";
 import { DeliveryFeeModule } from "./modules/delivery-fee/delivery-fee.module";
 import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/delivery-partner-ledger.module";
+import { CouponsModule } from "./modules/coupons/coupons.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -65,6 +66,7 @@ import { AppController } from "./app.controller";
     CustomersModule,
     AddressesModule,
     CartModule,
+    CouponsModule,
     OrdersModule,
     PaymentsModule,
     WebhooksModule,

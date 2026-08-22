@@ -13,6 +13,7 @@ import { AddressesService } from "../addresses/addresses.service";
 import { CommissionService } from "../commission/commission.service";
 import { RestaurantsService } from "../restaurants/restaurants.service";
 import { DeliveryFeeService } from "../delivery-fee/delivery-fee.service";
+import { CouponsService } from "../coupons/coupons.service";
 import { OrderErrors } from "../../common/exceptions/business.exception";
 
 /** Valid order fulfillment transitions. DELIVERED and CANCELLED are terminal. */
@@ -37,6 +38,7 @@ export class OrdersService {
     private readonly commissionService: CommissionService,
     private readonly restaurantsService: RestaurantsService,
     private readonly deliveryFeeService: DeliveryFeeService,
+    private readonly couponsService: CouponsService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -81,7 +83,27 @@ export class OrdersService {
     });
   }
 
-  async checkout(customerId: string, deliveryAddressId: string): Promise<Order> {
+  /**
+   * Lets the cart page show a real discount preview before committing — same
+   * validation checkout itself runs, just unlocked/non-transactional (see
+   * `CouponsService.preview`'s own doc comment on why that's safe here).
+   */
+  async previewCoupon(customerId: string, code: string) {
+    const cart = await this.cartService.getCart(customerId);
+    if (cart.items.length === 0 || !cart.restaurantId) {
+      throw OrderErrors.cartEmpty();
+    }
+    const restaurant = await this.restaurantsService.findByIdOrThrow(cart.restaurantId);
+    return this.couponsService.preview({
+      code,
+      customerId,
+      restaurantId: cart.restaurantId,
+      restaurantName: restaurant.name,
+      subtotal: Number(cart.subtotal),
+    });
+  }
+
+  async checkout(customerId: string, deliveryAddressId: string, couponCode?: string): Promise<Order> {
     const cart = await this.cartService.getCart(customerId);
     if (cart.items.length === 0 || !cart.restaurantId) {
       throw OrderErrors.cartEmpty();
@@ -103,9 +125,27 @@ export class OrdersService {
       addressLng: address.longitude,
       subtotal: Number(cart.subtotal),
     });
-    const totalAmount = (Number(cart.subtotal) + Number(deliveryFee.fee)).toFixed(2);
 
     const order = await this.dataSource.transaction(async (manager) => {
+      // Re-validated INSIDE the transaction (never trust a client-side preview) and row-locked so
+      // two concurrent checkouts racing a near-exhausted limit can't both redeem past it.
+      let discountAmount = "0.00";
+      let couponId: string | null = null;
+      let normalizedCouponCode: string | null = null;
+      if (couponCode) {
+        const result = await this.couponsService.validateAndLock(manager, {
+          code: couponCode,
+          customerId,
+          restaurantId: cart.restaurantId!,
+          restaurantName: restaurant.name,
+          subtotal: Number(cart.subtotal),
+        });
+        discountAmount = result.discountAmount;
+        couponId = result.coupon.id;
+        normalizedCouponCode = result.coupon.code;
+      }
+      const totalAmount = (Number(cart.subtotal) + Number(deliveryFee.fee) - Number(discountAmount)).toFixed(2);
+
       const created = manager.create(Order, {
         orderNumber: this.generateOrderNumber(),
         customerId,
@@ -127,10 +167,16 @@ export class OrdersService {
         restaurantPayoutAmount: commission.restaurantAmount.toFixed(2),
         deliveryFee: deliveryFee.fee,
         deliveryDistanceKm: deliveryFee.distanceKm !== null ? String(deliveryFee.distanceKm) : null,
-        totalAmount, // subtotal + deliveryFee — discounts (Coupons module) will extend this later
+        discountAmount,
+        couponCode: normalizedCouponCode,
+        totalAmount, // subtotal + deliveryFee - discountAmount
         status: OrderStatus.PLACED,
       });
       const savedOrder = await manager.save(created);
+
+      if (couponId) {
+        await this.couponsService.recordRedemption(manager, couponId, customerId, savedOrder.id, discountAmount);
+      }
 
       const items = cart.items.map((item) =>
         manager.create(OrderItem, {

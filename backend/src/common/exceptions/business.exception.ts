@@ -191,6 +191,31 @@ export const DeliveryAssignmentErrors = {
     new BusinessException("INVALID_DELIVERY_OTP", "That delivery code doesn't match.", HttpStatus.BAD_REQUEST),
 };
 
+export const CouponErrors = {
+  codeTaken: (code: string) =>
+    new BusinessException("COUPON_CODE_TAKEN", `A coupon with code "${code}" already exists.`, HttpStatus.CONFLICT),
+  notFound: () => new BusinessException("COUPON_NOT_FOUND", "That coupon code doesn't exist.", HttpStatus.NOT_FOUND),
+  inactive: () => new BusinessException("COUPON_INACTIVE", "That coupon is no longer active.", HttpStatus.CONFLICT),
+  notYetActive: () => new BusinessException("COUPON_NOT_YET_ACTIVE", "That coupon isn't valid yet.", HttpStatus.CONFLICT),
+  expired: () => new BusinessException("COUPON_EXPIRED", "That coupon has expired.", HttpStatus.CONFLICT),
+  minOrderNotMet: (minOrderAmount: string) =>
+    new BusinessException(
+      "COUPON_MIN_ORDER_NOT_MET",
+      `This coupon requires a minimum order of ₹${minOrderAmount}.`,
+      HttpStatus.CONFLICT,
+    ),
+  notApplicable: (restaurantName: string) =>
+    new BusinessException(
+      "COUPON_NOT_APPLICABLE",
+      `This coupon can only be used at ${restaurantName}.`,
+      HttpStatus.CONFLICT,
+    ),
+  customerLimitReached: () =>
+    new BusinessException("COUPON_CUSTOMER_LIMIT_REACHED", "You've already used this coupon the maximum number of times.", HttpStatus.CONFLICT),
+  totalLimitReached: () =>
+    new BusinessException("COUPON_TOTAL_LIMIT_REACHED", "This coupon has reached its total redemption limit.", HttpStatus.CONFLICT),
+};
+
 export const DeliveryPartnerErrors = {
   invalidStatusTransition: (from: string, to: string) =>
     new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move a delivery partner from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),

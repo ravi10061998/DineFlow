@@ -111,7 +111,15 @@ export class Order extends BaseEntity {
   @Column({ name: "delivery_distance_km", type: "decimal", precision: 6, scale: 2, nullable: true })
   deliveryDistanceKm!: string | null;
 
-  /** = subtotal + deliveryFee today — discounts (Coupons module) will extend this later. */
+  /** Snapshotted from the applied coupon (Module 24), if any — 0 when none was used. */
+  @Column({ name: "discount_amount", type: "decimal", precision: 10, scale: 2, default: 0 })
+  discountAmount!: string;
+
+  /** Denormalized alongside discountAmount so a receipt still shows what code was used, without a join. Null when no coupon was applied. */
+  @Column({ name: "coupon_code", type: "varchar", length: 30, nullable: true })
+  couponCode!: string | null;
+
+  /** = subtotal + deliveryFee - discountAmount. */
   @Column({ name: "total_amount", type: "decimal", precision: 10, scale: 2 })
   totalAmount!: string;
 

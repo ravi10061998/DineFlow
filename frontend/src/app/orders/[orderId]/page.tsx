@@ -90,6 +90,12 @@ function OrderDetailContent() {
                   </span>
                   <span>{Number(order.deliveryFee) === 0 ? "Free" : `₹${order.deliveryFee}`}</span>
                 </div>
+                {Number(order.discountAmount) > 0 && (
+                  <div className="flex items-center justify-between text-green-700">
+                    <span>Coupon {order.couponCode}</span>
+                    <span>-₹{order.discountAmount}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between border-t border-slate-100 pt-1 font-semibold text-slate-900">
                   <span>Total</span>
                   <span>₹{order.totalAmount}</span>

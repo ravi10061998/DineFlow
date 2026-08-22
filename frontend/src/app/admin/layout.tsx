@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/admin/delivery-fee", label: "Delivery Fee Settings" },
   { href: "/admin/delivery-partner-payouts", label: "Delivery Partner Payouts" },
   { href: "/admin/delivery-partner-fee", label: "Delivery Partner Pay Rate" },
+  { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/webhooks", label: "Webhooks" },

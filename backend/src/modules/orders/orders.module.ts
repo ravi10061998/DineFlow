@@ -12,6 +12,7 @@ import { AddressesModule } from "../addresses/addresses.module";
 import { CommissionModule } from "../commission/commission.module";
 import { RestaurantsModule } from "../restaurants/restaurants.module";
 import { DeliveryFeeModule } from "../delivery-fee/delivery-fee.module";
+import { CouponsModule } from "../coupons/coupons.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DeliveryFeeModule } from "../delivery-fee/delivery-fee.module";
     CommissionModule,
     RestaurantsModule,
     DeliveryFeeModule,
+    CouponsModule,
   ],
   controllers: [CustomerOrdersController, RestaurantOrdersController, AdminOrdersController],
   providers: [OrdersService],

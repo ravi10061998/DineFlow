@@ -11,6 +11,7 @@ import { AddressesService } from "../addresses/addresses.service";
 import { CommissionService } from "../commission/commission.service";
 import { RestaurantsService } from "../restaurants/restaurants.service";
 import { DeliveryFeeService } from "../delivery-fee/delivery-fee.service";
+import { CouponsService } from "../coupons/coupons.service";
 
 describe("OrdersService", () => {
   let service: OrdersService;
@@ -20,6 +21,7 @@ describe("OrdersService", () => {
   let commissionService: { calculateCommission: jest.Mock };
   let restaurantsService: { findByIdOrThrow: jest.Mock };
   let deliveryFeeService: { calculate: jest.Mock };
+  let couponsService: { validateAndLock: jest.Mock; recordRedemption: jest.Mock; preview: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
 
@@ -70,8 +72,9 @@ describe("OrdersService", () => {
     cartService = { getCart: jest.fn().mockResolvedValue(fullCart) };
     addressesService = { findOneOrThrow: jest.fn().mockResolvedValue(address) };
     commissionService = { calculateCommission: jest.fn().mockResolvedValue({ amount: 340, platformAmount: 34, restaurantAmount: 306 }) };
-    restaurantsService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: "r1", latitude: null, longitude: null }) };
+    restaurantsService = { findByIdOrThrow: jest.fn().mockResolvedValue({ id: "r1", name: "Test Diner", latitude: null, longitude: null }) };
     deliveryFeeService = { calculate: jest.fn().mockResolvedValue({ fee: "20.00", distanceKm: null }) };
+    couponsService = { validateAndLock: jest.fn(), recordRedemption: jest.fn().mockResolvedValue(undefined), preview: jest.fn() };
     dataSource = { transaction: jest.fn() };
     eventEmitter = { emit: jest.fn() };
 
@@ -84,6 +87,7 @@ describe("OrdersService", () => {
         { provide: CommissionService, useValue: commissionService },
         { provide: RestaurantsService, useValue: restaurantsService },
         { provide: DeliveryFeeService, useValue: deliveryFeeService },
+        { provide: CouponsService, useValue: couponsService },
         { provide: DataSource, useValue: dataSource },
         { provide: EventEmitter2, useValue: eventEmitter },
       ],
@@ -165,6 +169,42 @@ describe("OrdersService", () => {
 
       const savedOrder = savedEntities.find((e) => e.__entity === Order);
       expect(savedOrder).toMatchObject({ deliveryFee: "44.80", deliveryDistanceKm: "3.1", totalAmount: "384.80", restaurantPayoutAmount: "306.00" });
+    });
+
+    it("applies a validated coupon's discount to totalAmount and records the redemption, without touching the restaurant's payout", async () => {
+      couponsService.validateAndLock.mockResolvedValue({ coupon: { id: "coup1", code: "DINE50" }, discountAmount: "50.00" });
+      const savedEntities: any[] = [];
+      ordersRepo.findOne.mockResolvedValue({ id: "order1", status: OrderStatus.PLACED, items: [] });
+      dataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({
+          create: (Entity: any, data: any) => ({ __entity: Entity, ...data }),
+          save: async (x: any) => {
+            if (Array.isArray(x)) savedEntities.push(...x);
+            else savedEntities.push(x);
+            return Array.isArray(x) ? x : { id: "order1", ...x };
+          },
+          delete: jest.fn(),
+        }),
+      );
+
+      await service.checkout("u1", "addr1", "dine50");
+
+      expect(couponsService.validateAndLock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ code: "dine50", customerId: "u1", restaurantId: "r1", restaurantName: "Test Diner", subtotal: 340 }),
+      );
+      const savedOrder = savedEntities.find((e) => e.__entity === Order);
+      expect(savedOrder).toMatchObject({ discountAmount: "50.00", couponCode: "DINE50", totalAmount: "310.00", restaurantPayoutAmount: "306.00" });
+      expect(couponsService.recordRedemption).toHaveBeenCalledWith(expect.anything(), "coup1", "u1", "order1", "50.00");
+    });
+
+    it("propagates a coupon validation failure and never creates the order", async () => {
+      couponsService.validateAndLock.mockRejectedValue(new Error("COUPON_EXPIRED"));
+      dataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({ create: (Entity: any, data: any) => ({ __entity: Entity, ...data }), save: jest.fn(), delete: jest.fn() }),
+      );
+
+      await expect(service.checkout("u1", "addr1", "STALE")).rejects.toThrow("COUPON_EXPIRED");
     });
   });
 

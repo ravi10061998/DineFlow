@@ -12,8 +12,10 @@ import type { Cart } from "@/lib/cart-types";
 import type { CustomerAddress } from "@/lib/address-types";
 import type { Order } from "@/lib/order-types";
 import type { DeliveryFeeEstimate } from "@/lib/delivery-fee-types";
+import type { CouponPreview } from "@/lib/coupon-types";
 import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
+import { TextField } from "@/components/ui/text-field";
 
 function CartPageContent() {
   const router = useRouter();
@@ -26,6 +28,22 @@ function CartPageContent() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [feeEstimate, setFeeEstimate] = useState<DeliveryFeeEstimate | null>(null);
   const [feeLoading, setFeeLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
+  const [appliedForSubtotal, setAppliedForSubtotal] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
+
+  // The cart changed underneath an already-applied coupon (e.g. quantity/item edit) — the
+  // discount was computed against a subtotal that's no longer current, so require re-applying
+  // rather than silently showing a stale number.
+  useEffect(() => {
+    if (appliedCoupon && appliedForSubtotal !== null && cart?.subtotal !== appliedForSubtotal) {
+      setAppliedCoupon(null);
+      setAppliedForSubtotal(null);
+      setCouponError("Your cart changed — please re-apply the coupon.");
+    }
+  }, [cart?.subtotal, appliedCoupon, appliedForSubtotal]);
 
   useEffect(() => {
     if (!selectedAddressId && addresses && addresses.length > 0) {
@@ -46,12 +64,39 @@ function CartPageContent() {
       .finally(() => setFeeLoading(false));
   }, [selectedAddressId, cart]);
 
+  async function applyCoupon() {
+    if (!couponCode.trim()) return;
+    setCouponError(null);
+    setCouponChecking(true);
+    try {
+      const preview = await api.get<CouponPreview>(`/customer/me/orders/coupon-preview?code=${encodeURIComponent(couponCode.trim())}`);
+      setAppliedCoupon(preview);
+      setAppliedForSubtotal(cart?.subtotal ?? null);
+    } catch (err) {
+      setAppliedCoupon(null);
+      setAppliedForSubtotal(null);
+      setCouponError(getErrorMessage(err));
+    } finally {
+      setCouponChecking(false);
+    }
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    setAppliedForSubtotal(null);
+    setCouponCode("");
+    setCouponError(null);
+  }
+
   async function handleCheckout() {
     if (!selectedAddressId) return;
     setCheckoutError(null);
     setCheckingOut(true);
     try {
-      const result = await api.post<Order>("/customer/me/orders/checkout", { deliveryAddressId: selectedAddressId });
+      const result = await api.post<Order>("/customer/me/orders/checkout", {
+        deliveryAddressId: selectedAddressId,
+        couponCode: appliedCoupon ? appliedCoupon.coupon.code : undefined,
+      });
       router.push(`/orders/${result.id}`);
     } catch (err) {
       setCheckoutError(getErrorMessage(err));
@@ -182,10 +227,46 @@ function CartPageContent() {
                   {feeLoading ? "…" : feeEstimate ? (Number(feeEstimate.fee) === 0 ? "Free" : `₹${feeEstimate.fee}`) : "Estimated at checkout"}
                 </span>
               </div>
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-green-700">
+                  <span>Coupon {appliedCoupon.coupon.code}</span>
+                  <span>-₹{appliedCoupon.discountAmount}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between border-t border-slate-100 pt-1 text-lg font-semibold text-slate-900">
                 <span>Total</span>
-                <span>₹{(Number(cart?.subtotal ?? 0) + Number(feeEstimate?.fee ?? 0)).toFixed(2)}</span>
+                <span>
+                  ₹{(Number(cart?.subtotal ?? 0) + Number(feeEstimate?.fee ?? 0) - Number(appliedCoupon?.discountAmount ?? 0)).toFixed(2)}
+                </span>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-green-700">
+                    Coupon <span className="font-mono font-semibold">{appliedCoupon.coupon.code}</span> applied.
+                  </p>
+                  <Button variant="secondary" onClick={removeCoupon}>
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <TextField
+                      label="Have a coupon code?"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="e.g. DINE50"
+                    />
+                  </div>
+                  <Button variant="secondary" loading={couponChecking} disabled={!couponCode.trim()} onClick={applyCoupon}>
+                    Apply
+                  </Button>
+                </div>
+              )}
+              <ErrorBanner message={couponError} />
             </div>
 
             <ErrorBanner message={addressesError} />

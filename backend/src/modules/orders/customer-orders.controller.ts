@@ -14,7 +14,7 @@ export class CustomerOrdersController {
 
   @Post("checkout")
   async checkout(@CurrentUser() user: AuthenticatedUser, @Body() dto: CheckoutDto) {
-    return { message: "Order placed", data: await this.ordersService.checkout(user.userId, dto.deliveryAddressId) };
+    return { message: "Order placed", data: await this.ordersService.checkout(user.userId, dto.deliveryAddressId, dto.couponCode) };
   }
 
   @Get()
@@ -26,6 +26,12 @@ export class CustomerOrdersController {
   @Get("delivery-fee-preview")
   async previewDeliveryFee(@CurrentUser() user: AuthenticatedUser, @Query("addressId", ParseUUIDPipe) addressId: string) {
     return { message: "Delivery fee estimated", data: await this.ordersService.previewDeliveryFee(user.userId, addressId) };
+  }
+
+  // Also declared before ":id" — same route-order rule.
+  @Get("coupon-preview")
+  async previewCoupon(@CurrentUser() user: AuthenticatedUser, @Query("code") code: string) {
+    return { message: "Coupon validated", data: await this.ordersService.previewCoupon(user.userId, code) };
   }
 
   @Get(":id")

@@ -37,6 +37,8 @@ export interface Order {
   restaurantPayoutAmount: string;
   deliveryFee: string;
   deliveryDistanceKm: string | null;
+  discountAmount: string;
+  couponCode: string | null;
   totalAmount: string;
   status: OrderStatus;
   paymentStatus: string;
