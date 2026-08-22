@@ -8,6 +8,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { buildTypeOrmOptions } from "./config/typeorm.config";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
+import { AuditLogInterceptor } from "./modules/audit-logs/audit-log.interceptor";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { UsersModule } from "./modules/users/users.module";
@@ -45,6 +46,7 @@ import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { NotificationGatewayModule } from "./modules/notification-gateway/notification-gateway.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -93,10 +95,12 @@ import { AppController } from "./app.controller";
     DeliveryPartnerLedgerModule,
     AnalyticsModule,
     ReportsModule,
+    AuditLogsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
