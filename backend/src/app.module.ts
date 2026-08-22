@@ -39,6 +39,7 @@ import { PayoutsModule } from "./modules/payouts/payouts.module";
 import { DeliveryPartnersModule } from "./modules/delivery-partners/delivery-partners.module";
 import { DeliveryAssignmentsModule } from "./modules/delivery-assignments/delivery-assignments.module";
 import { DeliveryFeeModule } from "./modules/delivery-fee/delivery-fee.module";
+import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/delivery-partner-ledger.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -81,6 +82,7 @@ import { AppController } from "./app.controller";
     DeliveryPartnersModule,
     DeliveryAssignmentsModule,
     DeliveryFeeModule,
+    DeliveryPartnerLedgerModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

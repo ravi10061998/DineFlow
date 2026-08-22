@@ -8,6 +8,8 @@ const NAV_ITEMS = [
   { href: "/admin/delivery-partners", label: "Delivery Partners" },
   { href: "/admin/delivery-assignments", label: "Delivery Assignments" },
   { href: "/admin/delivery-fee", label: "Delivery Fee Settings" },
+  { href: "/admin/delivery-partner-payouts", label: "Delivery Partner Payouts" },
+  { href: "/admin/delivery-partner-fee", label: "Delivery Partner Pay Rate" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/webhooks", label: "Webhooks" },

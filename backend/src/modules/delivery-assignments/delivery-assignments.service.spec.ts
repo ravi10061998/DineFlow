@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DeliveryAssignmentsService } from "./delivery-assignments.service";
 import { DeliveryAssignment, DeliveryAssignmentStatus } from "./entities/delivery-assignment.entity";
 import { DeliveryPartner, DeliveryPartnerStatus } from "../delivery-partners/entities/delivery-partner.entity";
@@ -7,6 +8,7 @@ import { OrdersService } from "../orders/orders.service";
 import { RestaurantsService } from "../restaurants/restaurants.service";
 import { OrderStatus } from "../orders/entities/order.entity";
 import { OrderStatusChangedEvent } from "../../common/events/order-status-changed.event";
+import { DELIVERY_COMPLETED_EVENT } from "../../common/events/delivery-completed.event";
 
 describe("DeliveryAssignmentsService", () => {
   let service: DeliveryAssignmentsService;
@@ -14,6 +16,7 @@ describe("DeliveryAssignmentsService", () => {
   let partnersRepo: { find: jest.Mock; findOne: jest.Mock };
   let ordersService: { findOneOrThrow: jest.Mock };
   let restaurantsService: { findByIdOrThrow: jest.Mock };
+  let eventEmitter: { emit: jest.Mock };
 
   const order = { id: "o1", restaurantId: "r1" };
   const restaurant = { id: "r1", latitude: "12.9716", longitude: "77.5946" };
@@ -28,6 +31,7 @@ describe("DeliveryAssignmentsService", () => {
     partnersRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
     ordersService = { findOneOrThrow: jest.fn().mockResolvedValue(order) };
     restaurantsService = { findByIdOrThrow: jest.fn().mockResolvedValue(restaurant) };
+    eventEmitter = { emit: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -36,6 +40,7 @@ describe("DeliveryAssignmentsService", () => {
         { provide: getRepositoryToken(DeliveryPartner), useValue: partnersRepo },
         { provide: OrdersService, useValue: ordersService },
         { provide: RestaurantsService, useValue: restaurantsService },
+        { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
 
@@ -162,6 +167,10 @@ describe("DeliveryAssignmentsService", () => {
 
       expect(result.status).toBe(DeliveryAssignmentStatus.DELIVERED);
       expect(result.deliveredAt).toBeInstanceOf(Date);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        DELIVERY_COMPLETED_EVENT,
+        expect.objectContaining({ deliveryAssignmentId: "a1", deliveryPartnerId: "partner-a" }),
+      );
     });
   });
 });

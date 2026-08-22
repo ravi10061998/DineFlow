@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { PortalHero } from "@/components/ui/portal-hero";
 import { AssignmentCard } from "./assignment-card";
+import { EarningsSection } from "./earnings-section";
 
 const ACTIVE_STATUSES = ["ASSIGNED", "ACCEPTED", "PICKED_UP"];
 
@@ -173,6 +174,8 @@ function DeliveryDashboardContent() {
                 })()
               )}
             </div>
+
+            <EarningsSection />
           </>
         ) : null}
       </main>

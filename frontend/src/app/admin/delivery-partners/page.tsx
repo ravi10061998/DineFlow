@@ -17,11 +17,26 @@ export default function AdminDeliveryPartnersPage() {
   const [filter, setFilter] = useState<DeliveryPartnerStatus | "ALL">("PENDING");
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
 
   const { data: partners, loading, error, reload } = useApiQuery(
     () => api.get<DeliveryPartner[]>(`/admin/delivery-partners${filter === "ALL" ? "" : `?status=${filter}`}`),
     [filter],
   );
+
+  async function runPayout(id: string) {
+    setActionError(null);
+    setPayoutMessage(null);
+    setBusyId(id);
+    try {
+      const payout = await api.post<{ amount: string } | null>(`/admin/delivery-partners/${id}/payouts/run`);
+      setPayoutMessage(payout ? `Payout created for ₹${payout.amount}.` : "Nothing to pay out — no unpaid balance.");
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function runAction(id: string, action: Action) {
     setActionError(null);
@@ -83,6 +98,7 @@ export default function AdminDeliveryPartnersPage() {
 
       <div className="mt-4 space-y-2">
         <ErrorBanner message={error ?? actionError} />
+        {payoutMessage && <p className="text-sm text-green-700">{payoutMessage}</p>}
       </div>
 
       {loading ? (
@@ -136,6 +152,11 @@ export default function AdminDeliveryPartnersPage() {
                           {label}
                         </Button>
                       ))}
+                      {p.status === "APPROVED" && (
+                        <Button variant="secondary" loading={busyId === p.id} onClick={() => runPayout(p.id)}>
+                          Run payout
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

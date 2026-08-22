@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { OnEvent } from "@nestjs/event-emitter";
+import { EventEmitter2, OnEvent } from "@nestjs/event-emitter";
 import { In, Repository } from "typeorm";
 import * as crypto from "crypto";
 import { DeliveryAssignment, DeliveryAssignmentStatus } from "./entities/delivery-assignment.entity";
@@ -9,6 +9,7 @@ import { OrderStatus } from "../orders/entities/order.entity";
 import { OrdersService } from "../orders/orders.service";
 import { RestaurantsService } from "../restaurants/restaurants.service";
 import { ORDER_STATUS_CHANGED_EVENT, OrderStatusChangedEvent } from "../../common/events/order-status-changed.event";
+import { DELIVERY_COMPLETED_EVENT, DeliveryCompletedEvent } from "../../common/events/delivery-completed.event";
 import { DeliveryAssignmentErrors } from "../../common/exceptions/business.exception";
 
 /** Assignments in these statuses still occupy the partner — they can't be handed a second delivery at once. */
@@ -29,6 +30,7 @@ export class DeliveryAssignmentsService {
     @InjectRepository(DeliveryPartner) private readonly partnersRepository: Repository<DeliveryPartner>,
     private readonly ordersService: OrdersService,
     private readonly restaurantsService: RestaurantsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /** Auto-assign the moment a restaurant marks an order READY — Orders stays unaware this module exists. */
@@ -185,7 +187,11 @@ export class DeliveryAssignmentsService {
     if (assignment.deliveryOtp !== otp) {
       throw DeliveryAssignmentErrors.invalidOtp();
     }
-    return this.transition(assignment, DeliveryAssignmentStatus.DELIVERED);
+    const delivered = await this.transition(assignment, DeliveryAssignmentStatus.DELIVERED);
+    // Emitted only after the save above commits — the delivery partner's ledger (Module 23)
+    // must never credit a delivery that could still fail to persist.
+    this.eventEmitter.emit(DELIVERY_COMPLETED_EVENT, new DeliveryCompletedEvent(delivered.id, delivered.deliveryPartnerId, delivered.orderId));
+    return delivered;
   }
 
   private generateOtp(): string {
