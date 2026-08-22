@@ -178,3 +178,8 @@ export const BlogErrors = {
   categorySlugTaken: (slug: string) =>
     new BusinessException("BLOG_CATEGORY_SLUG_TAKEN", `A blog category with slug "${slug}" already exists.`, HttpStatus.CONFLICT),
 };
+
+export const PayoutErrors = {
+  notFailed: () =>
+    new BusinessException("PAYOUT_NOT_FAILED", "Only a failed payout can be retried.", HttpStatus.CONFLICT),
+};
