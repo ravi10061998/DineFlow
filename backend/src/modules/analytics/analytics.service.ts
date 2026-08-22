@@ -4,20 +4,9 @@ import { Repository } from "typeorm";
 import { Order, OrderStatus } from "../orders/entities/order.entity";
 import { OrderItem } from "../orders/entities/order-item.entity";
 import { ReviewsService } from "../reviews/reviews.service";
+import { resolvePeriod } from "../../common/utils/period.util";
 
 const DEFAULT_TOP_LIMIT = 10;
-
-export type AnalyticsPeriod = "7d" | "30d" | "90d" | "all";
-
-/** Anything unrecognized falls back to 30d rather than 400ing — a query-string typo shouldn't break a dashboard. */
-function resolvePeriod(period: string | undefined): { label: AnalyticsPeriod; since: Date | null } {
-  if (period === "all") return { label: "all", since: null };
-  const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  since.setHours(0, 0, 0, 0);
-  return { label: (period === "7d" || period === "90d" ? period : "30d") as AnalyticsPeriod, since };
-}
 
 /**
  * Purely computed from existing tables — no new schema, per the note left in

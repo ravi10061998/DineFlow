@@ -44,6 +44,7 @@ import { CouponsModule } from "./modules/coupons/coupons.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { NotificationGatewayModule } from "./modules/notification-gateway/notification-gateway.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -91,6 +92,7 @@ import { AppController } from "./app.controller";
     DeliveryFeeModule,
     DeliveryPartnerLedgerModule,
     AnalyticsModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

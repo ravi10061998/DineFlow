@@ -17,5 +17,8 @@ import { ReviewsModule } from "../reviews/reviews.module";
   ],
   controllers: [AdminAnalyticsController, RestaurantAnalyticsController],
   providers: [AnalyticsService],
+  // Exported so Reports (Module 28) can reuse the exact same revenue time-series query instead
+  // of re-deriving it — a CSV export should never drift from what its on-screen chart showed.
+  exports: [AnalyticsService],
 })
 export class AnalyticsModule {}

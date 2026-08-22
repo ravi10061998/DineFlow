@@ -1,17 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "@/lib/api-client";
+import { api, downloadAuthenticatedFile } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { AdminOverview, RevenuePoint, TopRestaurant, TopProduct, AnalyticsPeriod } from "@/lib/analytics-types";
 import { StatCard } from "@/components/ui/stat-card";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { BarChart } from "@/components/ui/bar-chart";
+import { Button } from "@/components/ui/button";
 
 const PERIODS: AnalyticsPeriod[] = ["7d", "30d", "90d", "all"];
 
 export default function AdminAnalyticsPage() {
   const [period, setPeriod] = useState<AnalyticsPeriod>("30d");
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function download(kind: "orders" | "revenue") {
+    setDownloadError(null);
+    setDownloading(kind);
+    try {
+      await downloadAuthenticatedFile(`/admin/reports/${kind}.csv?period=${period}`, `${kind}-${period}.csv`);
+    } catch (err) {
+      setDownloadError(getErrorMessage(err));
+    } finally {
+      setDownloading(null);
+    }
+  }
 
   const { data: overview, loading: overviewLoading, error: overviewError } = useApiQuery(
     () => api.get<AdminOverview>(`/admin/analytics/overview?period=${period}`),
@@ -37,7 +53,7 @@ export default function AdminAnalyticsPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Analytics</h1>
           <p className="mt-1 text-sm text-slate-500">Platform-wide revenue, orders, and ratings — computed live, no cached snapshots.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           {PERIODS.map((p) => (
             <button
               key={p}
@@ -47,10 +63,16 @@ export default function AdminAnalyticsPage() {
               {p === "all" ? "All time" : p}
             </button>
           ))}
+          <Button variant="secondary" loading={downloading === "orders"} onClick={() => download("orders")}>
+            Orders CSV
+          </Button>
+          <Button variant="secondary" loading={downloading === "revenue"} onClick={() => download("revenue")}>
+            Revenue CSV
+          </Button>
         </div>
       </div>
 
-      <ErrorBanner message={overviewError} />
+      <ErrorBanner message={overviewError ?? downloadError} />
 
       {overviewLoading ? (
         <p className="text-slate-500">Loading…</p>

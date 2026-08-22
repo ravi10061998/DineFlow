@@ -104,6 +104,20 @@ export async function fetchAuthenticatedBlob(path: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
+// A plain <a href> can't carry an Authorization header either — same problem as images, applied to
+// CSV report downloads (Module 28). Fetch authenticated, then trigger a real save via a throwaway
+// anchor with `download` set, so the browser names the file rather than just navigating to it.
+export async function downloadAuthenticatedFile(path: string, filename: string): Promise<void> {
+  const objectUrl = await fetchAuthenticatedBlob(path);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path, { method: "GET" }),
   post: <T>(path: string, data?: unknown, options: ApiFetchOptions = {}) =>
