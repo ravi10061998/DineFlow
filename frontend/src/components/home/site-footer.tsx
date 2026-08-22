@@ -27,7 +27,13 @@ export function SiteFooter() {
           </div>
           <FooterColumn title="Explore" links={[{ href: "/restaurants", label: "Restaurants" }, { href: "/blogs", label: "Food blog" }]} />
           <FooterColumn title="Account" links={[{ href: "/orders", label: "Your orders" }, { href: "/favorites", label: "Favorites" }, { href: "/profile", label: "Profile" }]} />
-          <FooterColumn title="Partner" links={[{ href: "/register-restaurant", label: "Register your restaurant" }]} />
+          <FooterColumn
+            title="Partner"
+            links={[
+              { href: "/register-restaurant", label: "Register your restaurant" },
+              { href: "/register-delivery-partner", label: "Become a delivery partner" },
+            ]}
+          />
         </div>
 
         <p className="mt-10 text-center text-xs text-slate-400">© {new Date().getFullYear()} DineFlow.</p>

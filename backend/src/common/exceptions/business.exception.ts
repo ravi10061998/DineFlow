@@ -183,3 +183,14 @@ export const PayoutErrors = {
   notFailed: () =>
     new BusinessException("PAYOUT_NOT_FAILED", "Only a failed payout can be retried.", HttpStatus.CONFLICT),
 };
+
+export const DeliveryPartnerErrors = {
+  invalidStatusTransition: (from: string, to: string) =>
+    new BusinessException("INVALID_STATUS_TRANSITION", `Cannot move a delivery partner from ${from} to ${to}.`, HttpStatus.BAD_REQUEST),
+  notApproved: () =>
+    new BusinessException(
+      "DELIVERY_PARTNER_NOT_APPROVED",
+      "Only an approved delivery partner can go online.",
+      HttpStatus.CONFLICT,
+    ),
+};

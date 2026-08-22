@@ -24,7 +24,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      const destination = user.role === "ADMIN" ? "/admin" : user.role.startsWith("RESTAURANT") ? "/restaurant" : "/profile";
+      const destination =
+        user.role === "ADMIN"
+          ? "/admin"
+          : user.role.startsWith("RESTAURANT")
+            ? "/restaurant"
+            : user.role === "DELIVERY_PARTNER"
+              ? "/delivery"
+              : "/profile";
       router.push(destination);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -73,6 +80,12 @@ export default function LoginPage() {
           Own a restaurant?{" "}
           <Link href="/register-restaurant" className="font-medium text-slate-900 underline">
             Register it
+          </Link>
+        </p>
+        <p className="text-center text-sm text-slate-500">
+          Want to deliver?{" "}
+          <Link href="/register-delivery-partner" className="font-medium text-slate-900 underline">
+            Become a delivery partner
           </Link>
         </p>
       </form>

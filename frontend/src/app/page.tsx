@@ -28,6 +28,7 @@ const PORTAL_HOME: Record<string, string> = {
   ADMIN: "/admin",
   RESTAURANT_ADMIN: "/restaurant",
   RESTAURANT_STAFF: "/restaurant",
+  DELIVERY_PARTNER: "/delivery",
 };
 
 export default function Home() {
