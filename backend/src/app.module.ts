@@ -34,6 +34,7 @@ import { BlogsModule } from "./modules/blogs/blogs.module";
 import { FavoritesModule } from "./modules/favorites/favorites.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { StoreModule } from "./modules/store/store.module";
+import { SettlementsModule } from "./modules/settlements/settlements.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -71,6 +72,7 @@ import { AppController } from "./app.controller";
     FavoritesModule,
     NotificationsModule,
     StoreModule,
+    SettlementsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

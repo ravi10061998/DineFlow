@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/webhooks", label: "Webhooks" },
   { href: "/admin/refunds", label: "Refunds" },
+  { href: "/admin/settlements", label: "Settlements" },
   { href: "/admin/subscription-plans", label: "Subscription Plans" },
   { href: "/admin/roles", label: "Roles & Permissions" },
 ];

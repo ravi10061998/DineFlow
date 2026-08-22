@@ -18,6 +18,7 @@ const QUICK_ACTIONS = [
   { href: "/restaurant/products", icon: "🍽️", label: "Products", description: "Add dishes, variants & add-ons" },
   { href: "/restaurant/orders", icon: "🧾", label: "Orders", description: "Fulfill incoming orders" },
   { href: "/restaurant/ledger", icon: "💰", label: "Ledger", description: "Track your running balance" },
+  { href: "/restaurant/settlements", icon: "🧮", label: "Settlements", description: "See what's been locked in for payout" },
   { href: "/restaurant/subscription", icon: "⭐", label: "Subscription", description: "Manage your plan" },
 ] as const;
 

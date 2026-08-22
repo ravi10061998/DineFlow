@@ -41,4 +41,9 @@ export class LedgerEntry extends BaseEntity {
 
   @Column({ type: "varchar", length: 500 })
   description!: string;
+
+  /** Null until a settlement run locks this entry into a period — see Module 17. */
+  @Column({ name: "settlement_id", type: "uuid", nullable: true })
+  @Index()
+  settlementId!: string | null;
 }
