@@ -11,6 +11,7 @@ import { ErrorBanner } from "../../src/components/ui/ErrorBanner";
 import { LoadingView } from "../../src/components/ui/LoadingView";
 import { StarRating } from "../../src/components/ui/StarRating";
 import { StoreProductImage } from "../../src/components/StoreImage";
+import { FavoriteButton } from "../../src/components/FavoriteButton";
 
 function ProductCard({ product, restaurantId }: { product: MenuProduct; restaurantId: string }) {
   const [variantId, setVariantId] = useState(product.variants[0]?.id ?? "");
@@ -68,12 +69,17 @@ function ProductCard({ product, restaurantId }: { product: MenuProduct; restaura
             </Text>
           )}
         </View>
-        <StoreProductImage
-          restaurantId={restaurantId}
-          productId={product.id}
-          image={product.images[0]}
-          className="h-24 w-24 rounded-lg"
-        />
+        <View>
+          <StoreProductImage
+            restaurantId={restaurantId}
+            productId={product.id}
+            image={product.images[0]}
+            className="h-24 w-24 rounded-lg"
+          />
+          <View className="absolute top-1 right-1">
+            <FavoriteButton targetType="PRODUCT" targetId={product.id} />
+          </View>
+        </View>
       </View>
 
       {product.isAvailable && (
@@ -153,7 +159,10 @@ export default function RestaurantMenuScreen() {
 
         {restaurant && (
           <View className="mb-4">
-            <Text className="text-2xl font-bold text-slate-900">{restaurant.name}</Text>
+            <View className="flex-row items-start justify-between">
+              <Text className="flex-1 text-2xl font-bold text-slate-900">{restaurant.name}</Text>
+              <FavoriteButton targetType="RESTAURANT" targetId={restaurant.id} />
+            </View>
             <Text className="text-sm text-slate-500">
               {restaurant.city}, {restaurant.state}
             </Text>

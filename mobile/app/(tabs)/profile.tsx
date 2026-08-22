@@ -47,6 +47,8 @@ export default function ProfileScreen() {
 
         <View className="mt-4 rounded-xl border border-slate-200 bg-white px-5">
           <MenuRow label="Delivery addresses" onPress={() => router.push("/addresses")} />
+          <MenuRow label="Favorites" onPress={() => router.push("/favorites")} />
+          <MenuRow label="Notifications" onPress={() => router.push("/notifications")} />
         </View>
 
         <Button variant="secondary" loading={loggingOut} onPress={confirmLogout} className="mt-6">

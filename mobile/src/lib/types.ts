@@ -201,6 +201,93 @@ export interface Review {
   restaurant?: { id: string; name: string };
 }
 
+export interface FoodCategory {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+}
+
+export type OfferDiscountType = "PERCENTAGE" | "FIXED";
+
+export interface Offer {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  discountType: OfferDiscountType;
+  discountValue: string;
+  minOrderAmount: string | null;
+  maxDiscountAmount: string | null;
+  expiresAt: string | null;
+  restaurantId: string | null;
+}
+
+export interface StoreRestaurant {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  state: string;
+  status: string;
+  isFeatured: boolean;
+  hasLogo: boolean;
+  avgRating: number | null;
+  reviewCount: number;
+}
+
+export interface StoreProduct {
+  id: string;
+  name: string;
+  basePrice: string;
+  images: { id: string; path: string; originalFileName: string; mimeType: string }[];
+  restaurantId: string;
+  restaurantName: string;
+  orderCount: number;
+}
+
+export interface HomeFeed {
+  banners: Banner[];
+  categories: FoodCategory[];
+  featuredRestaurants: StoreRestaurant[];
+  popularRestaurants: StoreRestaurant[];
+  popularProducts: StoreProduct[];
+  trendingProducts: StoreProduct[];
+  offers: Offer[];
+  blogs: unknown[];
+}
+
+export type FavoriteTargetType = "RESTAURANT" | "PRODUCT";
+
+export interface Favorite {
+  id: string;
+  targetType: FavoriteTargetType;
+  targetId: string;
+  restaurant: { id: string; name: string; slug: string; city: string; hasLogo?: boolean } | null;
+  product: { id: string; name: string; basePrice: string; images: unknown[] } | null;
+}
+
+export interface AppNotification {
+  id: string;
+  type: "ORDER_UPDATE" | "OFFER" | "ANNOUNCEMENT";
+  title: string;
+  body: string;
+  relatedOrderId: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export type DeliveryAssignmentStatus = "ASSIGNED" | "ACCEPTED" | "REJECTED" | "PICKED_UP" | "DELIVERED";
 
 export interface DeliveryAssignment {

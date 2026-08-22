@@ -31,6 +31,13 @@ export function StoreProductImage({
   return <Image source={{ uri }} onError={() => setFailed(true)} className={className} />;
 }
 
+/** Banners and food categories store an admin-provided absolute image URL directly. */
+export function RemoteImage({ src, emoji = "🍽️", className }: { src: string | null; emoji?: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <Fallback emoji={emoji} className={className} />;
+  return <Image source={{ uri: src }} onError={() => setFailed(true)} className={className} />;
+}
+
 export function RestaurantLogoImage({
   restaurantId,
   hasLogo,

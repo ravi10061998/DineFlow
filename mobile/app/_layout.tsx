@@ -16,6 +16,8 @@ export default function RootLayout() {
           <Stack.Screen name="restaurant/[id]" options={{ headerShown: true, title: "Menu" }} />
           <Stack.Screen name="order/[id]" options={{ headerShown: true, title: "Order" }} />
           <Stack.Screen name="addresses" options={{ headerShown: true, title: "Delivery addresses" }} />
+          <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
+          <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>
