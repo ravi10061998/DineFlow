@@ -44,6 +44,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post("refresh")
   async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
     const tokens = await this.authService.refresh(dto.refreshToken, this.requestMeta(req));
@@ -68,6 +69,7 @@ export class AuthController {
     return { message: "Current user", data: { ...this.toPublicUser(fullUser), permissions: user.permissions } };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("verify-email/request")
   async requestEmailVerification(@CurrentUser() user: AuthenticatedUser) {
     await this.authService.requestEmailVerification(user.userId);
@@ -75,6 +77,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("verify-email/confirm")
   async confirmEmailVerification(@Body() dto: VerifyEmailConfirmDto) {
     await this.authService.confirmEmailVerification(dto.token);
@@ -90,6 +93,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("reset-password")
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto.token, dto.newPassword);
