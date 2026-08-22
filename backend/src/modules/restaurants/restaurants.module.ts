@@ -7,6 +7,7 @@ import { RestaurantHoliday } from "./entities/restaurant-holiday.entity";
 import { RestaurantStatusHistory } from "./entities/restaurant-status-history.entity";
 import { RestaurantsService } from "./restaurants.service";
 import { RestaurantDocumentsService } from "./restaurant-documents.service";
+import { RestaurantLogoService } from "./restaurant-logo.service";
 import { RestaurantRegistrationController } from "./restaurant-registration.controller";
 import { RestaurantSelfServiceController } from "./restaurant-self-service.controller";
 import { AdminRestaurantsController } from "./admin-restaurants.controller";
@@ -34,7 +35,7 @@ import { AuthModule } from "../auth/auth.module";
     AdminRestaurantsController,
     PublicRestaurantsController,
   ],
-  providers: [RestaurantsService, RestaurantDocumentsService],
-  exports: [RestaurantsService, RestaurantDocumentsService],
+  providers: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService],
+  exports: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService],
 })
 export class RestaurantsModule {}

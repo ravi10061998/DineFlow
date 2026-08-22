@@ -9,6 +9,7 @@ import type { PublicRestaurant } from "@/lib/cart-types";
 import { Logo } from "@/components/logo";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { FavoriteButton } from "@/components/home/favorite-button";
+import { RestaurantLogoImage } from "@/components/home/store-image";
 
 function BrowseRestaurantsContent() {
   const { data: restaurants, loading, error } = useApiQuery(() => api.get<PublicRestaurant[]>("/restaurants"));
@@ -44,7 +45,13 @@ function BrowseRestaurantsContent() {
         ) : (
           <ul className="mt-6 space-y-3">
             {visible?.map((r) => (
-              <li key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
+              <li key={r.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
+                <RestaurantLogoImage
+                  restaurantId={r.id}
+                  hasLogo={r.hasLogo}
+                  alt={r.name}
+                  className="h-12 w-12 shrink-0 rounded-md object-cover text-base"
+                />
                 <Link href={`/restaurants/${r.id}`} className="block flex-1">
                   <p className="font-medium text-slate-900">{r.name}</p>
                   <p className="text-sm text-slate-500">

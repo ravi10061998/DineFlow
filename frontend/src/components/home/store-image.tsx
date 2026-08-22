@@ -55,3 +55,28 @@ export function StoreProductImage({
   // eslint-disable-next-line @next/next/no-img-element -- served from our own public API, not something Next's image optimizer can reach
   return <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />;
 }
+
+/** A restaurant's logo, also served publicly (`GET /restaurants/:id/logo`) — same reasoning as product photos. */
+export function RestaurantLogoImage({
+  restaurantId,
+  hasLogo,
+  alt,
+  className,
+}: {
+  restaurantId: string;
+  hasLogo: boolean;
+  alt: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!hasLogo || failed) {
+    return (
+      <div className={`flex items-center justify-center bg-gradient-to-br from-amber-100 to-rose-100 text-2xl ${className ?? ""}`}>
+        🍽️
+      </div>
+    );
+  }
+  const src = `${API_URL}/restaurants/${restaurantId}/logo`;
+  // eslint-disable-next-line @next/next/no-img-element -- served from our own public API, not something Next's image optimizer can reach
+  return <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />;
+}

@@ -21,6 +21,7 @@ export interface RestaurantSummary {
   state: string;
   status: RestaurantStatus;
   isFeatured: boolean;
+  hasLogo: boolean;
   distanceKm?: number;
 }
 
@@ -218,7 +219,16 @@ export class StoreService {
   }
 
   private toRestaurantSummary(r: Restaurant): RestaurantSummary {
-    return { id: r.id, name: r.name, slug: r.slug, city: r.city, state: r.state, status: r.status, isFeatured: r.isFeatured };
+    return {
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      city: r.city,
+      state: r.state,
+      status: r.status,
+      isFeatured: r.isFeatured,
+      hasLogo: !!r.logoPath,
+    };
   }
 
   private toProductSummary(p: Product, orderCount: number): ProductSummary {

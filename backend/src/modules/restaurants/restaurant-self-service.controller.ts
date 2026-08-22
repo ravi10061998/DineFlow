@@ -30,6 +30,7 @@ import {
   MAX_DOCUMENT_SIZE_BYTES,
   RestaurantDocumentsService,
 } from "./restaurant-documents.service";
+import { ALLOWED_LOGO_MIME_TYPES, LOGO_UPLOAD_ROOT, MAX_LOGO_SIZE_BYTES, RestaurantLogoService } from "./restaurant-logo.service";
 import { UpdateRestaurantDto } from "./dto/update-restaurant.dto";
 import { SetBusinessHoursDto } from "./dto/set-business-hours.dto";
 import { CreateHolidayDto } from "./dto/create-holiday.dto";
@@ -42,6 +43,7 @@ export class RestaurantSelfServiceController {
   constructor(
     private readonly restaurantsService: RestaurantsService,
     private readonly documentsService: RestaurantDocumentsService,
+    private readonly logoService: RestaurantLogoService,
   ) {}
 
   @Get()
@@ -84,6 +86,44 @@ export class RestaurantSelfServiceController {
   async removeHoliday(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) {
     await this.restaurantsService.removeHoliday(user.restaurantId!, id);
     return { message: "Holiday removed", data: null };
+  }
+
+  @Post("logo")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: (req, _file, cb) => {
+          const restaurantId = (req as any).user.restaurantId as string;
+          const dir = path.join(LOGO_UPLOAD_ROOT, restaurantId);
+          fs.mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname)}`),
+      }),
+      limits: { fileSize: MAX_LOGO_SIZE_BYTES },
+      fileFilter: (_req, file, cb) => {
+        if (!ALLOWED_LOGO_MIME_TYPES.includes(file.mimetype)) {
+          cb(new BadRequestException("Unsupported file type. Allowed: JPEG, PNG, WebP."), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadLogo(@CurrentUser() user: AuthenticatedUser, @UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException("A file is required.");
+    }
+    const restaurant = await this.restaurantsService.findByIdOrThrow(user.restaurantId!);
+    const updated = await this.logoService.setLogo(restaurant, file);
+    return { message: "Logo uploaded", data: updated };
+  }
+
+  @Delete("logo")
+  async removeLogo(@CurrentUser() user: AuthenticatedUser) {
+    const restaurant = await this.restaurantsService.findByIdOrThrow(user.restaurantId!);
+    const updated = await this.logoService.removeLogo(restaurant);
+    return { message: "Logo deleted", data: updated };
   }
 
   @Post("documents")

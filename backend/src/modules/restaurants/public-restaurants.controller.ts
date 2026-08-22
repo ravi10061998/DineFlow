@@ -1,7 +1,9 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Param, ParseUUIDPipe, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import type { Response } from "express";
 import { Public } from "../../common/decorators/public.decorator";
 import { RestaurantsService } from "./restaurants.service";
+import { RestaurantLogoService } from "./restaurant-logo.service";
 import { RestaurantStatus } from "./entities/restaurant.entity";
 
 /**
@@ -13,14 +15,33 @@ import { RestaurantStatus } from "./entities/restaurant.entity";
 @Public()
 @Controller("restaurants")
 export class PublicRestaurantsController {
-  constructor(private readonly restaurantsService: RestaurantsService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly logoService: RestaurantLogoService,
+  ) {}
 
   @Get()
   async list() {
     const restaurants = await this.restaurantsService.findAll(RestaurantStatus.APPROVED);
     return {
       message: "Restaurants fetched",
-      data: restaurants.map((r) => ({ id: r.id, name: r.name, slug: r.slug, city: r.city, state: r.state })),
+      data: restaurants.map((r) => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        city: r.city,
+        state: r.state,
+        hasLogo: !!r.logoPath,
+      })),
     };
+  }
+
+  /** No auth needed — a restaurant's logo is public-facing, unlike a customer's own profile photo. */
+  @Get(":id/logo")
+  async downloadLogo(@Param("id", ParseUUIDPipe) id: string, @Res() res: Response) {
+    const restaurant = await this.restaurantsService.findByIdOrThrow(id);
+    const absolutePath = await this.logoService.absolutePath(restaurant);
+    res.setHeader("Content-Type", restaurant.logoMimeType!);
+    res.sendFile(absolutePath);
   }
 }

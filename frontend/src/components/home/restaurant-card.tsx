@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { StoreRestaurant } from "@/lib/home-types";
 import { FavoriteButton } from "./favorite-button";
+import { RestaurantLogoImage } from "./store-image";
 
 /** No star rating is shown — there's no Reviews module yet, and a fabricated number would be worse than none. */
 export function RestaurantCard({ restaurant }: { restaurant: StoreRestaurant }) {
@@ -11,8 +12,13 @@ export function RestaurantCard({ restaurant }: { restaurant: StoreRestaurant }) 
       href={`/restaurants/${restaurant.id}`}
       className="block w-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md sm:w-48"
     >
-      <div className="relative flex h-24 items-center justify-center bg-gradient-to-br from-amber-100 to-rose-100 text-3xl sm:h-28">
-        🍽️
+      <div className="relative h-24 sm:h-28">
+        <RestaurantLogoImage
+          restaurantId={restaurant.id}
+          hasLogo={restaurant.hasLogo}
+          alt={restaurant.name}
+          className="h-full w-full object-cover"
+        />
         {restaurant.isFeatured && (
           <span className="absolute top-1.5 left-1.5 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white">
             Featured

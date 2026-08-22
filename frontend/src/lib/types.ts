@@ -42,6 +42,9 @@ export interface Restaurant {
   latitude: string | null;
   longitude: string | null;
   deliveryRadiusKm: string;
+  logoPath: string | null;
+  logoOriginalName: string | null;
+  logoMimeType: string | null;
   createdAt: string;
   updatedAt: string;
 }

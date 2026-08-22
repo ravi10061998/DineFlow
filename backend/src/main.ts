@@ -11,7 +11,13 @@ async function bootstrap() {
   // bytes; Nest still parses req.body as JSON normally, this just additionally keeps req.rawBody.
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
-  app.use(helmet());
+  // Helmet's default Cross-Origin-Resource-Policy is "same-origin", which silently blocks
+  // the frontend (a different origin in dev, and typically a different subdomain in prod)
+  // from loading anything served here via a plain <img src> — including every public
+  // image route (product photos, restaurant logos). This is a deliberately public API
+  // for a separate frontend, so those assets need to be loadable cross-origin; every
+  // other Helmet protection (CSP, HSTS, frame-options, etc.) stays at its default.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cookieParser());
   app.enableCors({ origin: process.env.CORS_ORIGIN?.split(",") ?? "*", credentials: true });
   app.setGlobalPrefix("api/v1");

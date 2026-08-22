@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
+import { getErrorMessage } from "@/lib/errors";
 import type { Restaurant } from "@/lib/types";
 import type { EffectiveCommission } from "@/lib/commission-types";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { PortalHero } from "@/components/ui/portal-hero";
+import { RestaurantLogoUpload } from "@/components/restaurant-logo-upload";
 
 const QUICK_ACTIONS = [
   { href: "/restaurant/categories", icon: "🗂️", label: "Menu Categories", description: "Organize your menu into sections" },
@@ -45,11 +48,41 @@ function CommissionCard() {
 
 export default function RestaurantDashboardPage() {
   const { user } = useAuth();
-  const { data: restaurant, loading, error } = useApiQuery(() => api.get<Restaurant>("/restaurant/me"));
+  const { data: restaurant, loading, error, reload } = useApiQuery(() => api.get<Restaurant>("/restaurant/me"));
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
   if (error) return <ErrorBanner message={error} />;
   if (!restaurant) return null;
+
+  async function handleUploadLogo(file: File) {
+    setLogoError(null);
+    setLogoBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      await api.upload("/restaurant/me/logo", formData);
+      reload();
+    } catch (err) {
+      setLogoError(getErrorMessage(err));
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  async function handleRemoveLogo() {
+    setLogoError(null);
+    setLogoBusy(true);
+    try {
+      await api.delete("/restaurant/me/logo");
+      reload();
+    } catch (err) {
+      setLogoError(getErrorMessage(err));
+    } finally {
+      setLogoBusy(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -78,6 +111,19 @@ export default function RestaurantDashboardPage() {
           Your restaurant is suspended{restaurant.rejectionReason ? `: ${restaurant.rejectionReason}` : "."}
         </div>
       )}
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold text-slate-700">Restaurant photo</h2>
+        <RestaurantLogoUpload
+          restaurantId={restaurant.id}
+          hasLogo={!!restaurant.logoPath}
+          version={restaurant.updatedAt}
+          onUpload={handleUploadLogo}
+          onRemove={handleRemoveLogo}
+          busy={logoBusy}
+        />
+        <ErrorBanner message={logoError} />
+      </div>
 
       <div>
         <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Quick actions</h2>

@@ -63,6 +63,7 @@ export interface StoreRestaurant {
   state: string;
   status: string;
   isFeatured: boolean;
+  hasLogo: boolean;
   distanceKm?: number;
 }
 

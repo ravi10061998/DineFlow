@@ -4,6 +4,7 @@ export interface PublicRestaurant {
   slug: string;
   city: string;
   state: string;
+  hasLogo: boolean;
 }
 
 export interface MenuVariant {

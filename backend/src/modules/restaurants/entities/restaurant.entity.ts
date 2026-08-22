@@ -67,4 +67,18 @@ export class Restaurant extends BaseEntity {
   /** Admin-curated homepage placement — not a ranking signal, purely editorial. */
   @Column({ name: "is_featured", type: "boolean", default: false })
   isFeatured!: boolean;
+
+  /**
+   * Logo/cover photo shown on the restaurant's own profile page and everywhere
+   * customers see the restaurant (cards, menu page) — served publicly (no auth)
+   * since it's not sensitive, unlike a customer's profile photo.
+   */
+  @Column({ name: "logo_path", type: "varchar", length: 500, nullable: true })
+  logoPath!: string | null;
+
+  @Column({ name: "logo_original_name", type: "varchar", length: 255, nullable: true })
+  logoOriginalName!: string | null;
+
+  @Column({ name: "logo_mime_type", type: "varchar", length: 100, nullable: true })
+  logoMimeType!: string | null;
 }
