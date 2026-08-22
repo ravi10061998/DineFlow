@@ -157,4 +157,15 @@ export class ReviewsService {
     }
     return map;
   }
+
+  /** Platform-wide, no restaurant scope — for Analytics' admin overview. */
+  async getPlatformSummary(): Promise<RatingSummary> {
+    const row = await this.reviewsRepository
+      .createQueryBuilder("review")
+      .select("AVG(review.rating)", "avgRating")
+      .addSelect("COUNT(*)", "reviewCount")
+      .getRawOne<{ avgRating: string | null; reviewCount: string }>();
+    if (!row || row.avgRating === null) return NO_RATING;
+    return { avgRating: Math.round(Number(row.avgRating) * 10) / 10, reviewCount: Number(row.reviewCount) };
+  }
 }

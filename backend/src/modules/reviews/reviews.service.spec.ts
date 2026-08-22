@@ -5,13 +5,14 @@ import { ReviewsService } from "./reviews.service";
 import { Review } from "./entities/review.entity";
 import { Order, OrderStatus } from "../orders/entities/order.entity";
 
-function makeQueryBuilder(rawResult: unknown[]) {
+function makeQueryBuilder(rawResult: unknown[], rawOneResult: unknown = null) {
   return {
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
     getRawMany: jest.fn().mockResolvedValue(rawResult),
+    getRawOne: jest.fn().mockResolvedValue(rawOneResult),
   };
 }
 
@@ -128,6 +129,24 @@ describe("ReviewsService", () => {
 
     it("getSummary falls back to null/0 for a restaurant with no reviews", async () => {
       const result = await service.getSummary("no-reviews-restaurant");
+      expect(result).toEqual({ avgRating: null, reviewCount: 0 });
+    });
+  });
+
+  describe("getPlatformSummary", () => {
+    it("rounds the platform-wide average", async () => {
+      reviewsRepo.createQueryBuilder.mockReturnValue(makeQueryBuilder([], { avgRating: "4.6666667", reviewCount: "3" }));
+
+      const result = await service.getPlatformSummary();
+
+      expect(result).toEqual({ avgRating: 4.7, reviewCount: 3 });
+    });
+
+    it("falls back to null/0 when there are no reviews at all", async () => {
+      reviewsRepo.createQueryBuilder.mockReturnValue(makeQueryBuilder([], { avgRating: null, reviewCount: "0" }));
+
+      const result = await service.getPlatformSummary();
+
       expect(result).toEqual({ avgRating: null, reviewCount: 0 });
     });
   });

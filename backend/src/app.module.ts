@@ -43,6 +43,7 @@ import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/d
 import { CouponsModule } from "./modules/coupons/coupons.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { NotificationGatewayModule } from "./modules/notification-gateway/notification-gateway.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -89,6 +90,7 @@ import { AppController } from "./app.controller";
     DeliveryAssignmentsModule,
     DeliveryFeeModule,
     DeliveryPartnerLedgerModule,
+    AnalyticsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
