@@ -36,6 +36,24 @@ export class PublicRestaurantsController {
     };
   }
 
+  /** Single-restaurant detail for the customer-facing menu page — same shape as the list, plus a description. */
+  @Get(":id")
+  async getOne(@Param("id", ParseUUIDPipe) id: string) {
+    const r = await this.restaurantsService.findByIdOrThrow(id);
+    return {
+      message: "Restaurant fetched",
+      data: {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        description: r.description,
+        city: r.city,
+        state: r.state,
+        hasLogo: !!r.logoPath,
+      },
+    };
+  }
+
   /** No auth needed — a restaurant's logo is public-facing, unlike a customer's own profile photo. */
   @Get(":id/logo")
   async downloadLogo(@Param("id", ParseUUIDPipe) id: string, @Res() res: Response) {

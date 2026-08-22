@@ -6,14 +6,20 @@ import { api } from "@/lib/api-client";
 import { useApiQuery } from "@/lib/use-api-query";
 import { useAuth } from "@/lib/auth-context";
 import type { MenuCategory } from "@/lib/cart-types";
+import type { PublicRestaurantDetail } from "@/lib/cart-types";
 import { Logo } from "@/components/logo";
 import { ErrorBanner } from "@/components/ui/error-banner";
 import { FavoriteButton } from "@/components/home/favorite-button";
+import { RestaurantLogoImage } from "@/components/home/store-image";
 import { MenuProductCard } from "./menu-product-card";
 
 export default function RestaurantMenuPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
   const { user } = useAuth();
+  const { data: restaurant } = useApiQuery(
+    () => api.get<PublicRestaurantDetail>(`/restaurants/${restaurantId}`),
+    [restaurantId],
+  );
   const { data: menu, loading, error } = useApiQuery(() => api.get<MenuCategory[]>(`/restaurants/${restaurantId}/menu`), [restaurantId]);
 
   const canOrder = user?.role === "CUSTOMER";
@@ -35,8 +41,22 @@ export default function RestaurantMenuPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-slate-900">Menu</h1>
+        <div className="mb-6 flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <RestaurantLogoImage
+            restaurantId={restaurantId}
+            hasLogo={restaurant?.hasLogo ?? false}
+            alt={restaurant?.name ?? "Restaurant"}
+            className="h-16 w-16 shrink-0 rounded-xl object-cover text-2xl"
+          />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-semibold text-slate-900">{restaurant?.name ?? "Menu"}</h1>
+            {restaurant && (
+              <p className="truncate text-sm text-slate-500">
+                {restaurant.city}, {restaurant.state}
+              </p>
+            )}
+            {restaurant?.description && <p className="mt-1 text-sm text-slate-500">{restaurant.description}</p>}
+          </div>
           <FavoriteButton targetType="RESTAURANT" targetId={restaurantId} />
         </div>
 

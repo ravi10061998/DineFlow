@@ -56,32 +56,42 @@ export function MenuProductCard({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-3">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+      <div className="flex gap-4 p-4">
+        <div className="min-w-0 flex-1">
+          <p className={`font-semibold ${product.isAvailable ? "text-slate-900" : "text-slate-400"}`}>{product.name}</p>
+          {product.description && <p className="mt-0.5 line-clamp-2 text-sm text-slate-500">{product.description}</p>}
+          <p className="mt-1.5 text-sm font-semibold text-slate-900">₹{product.basePrice}</p>
+          {!product.isAvailable && (
+            <span className="mt-1 inline-block rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+              Currently out of stock
+            </span>
+          )}
+        </div>
+
+        <div className="relative h-28 w-28 shrink-0">
           <StoreProductImage
             restaurantId={restaurantId}
             productId={product.id}
             image={product.images[0] as { id: string } | undefined}
             alt={product.name}
-            className="h-16 w-16 shrink-0 rounded-md object-cover"
+            className={`h-full w-full rounded-lg object-cover ${!product.isAvailable ? "opacity-50 grayscale" : ""}`}
           />
-          <div>
-            <p className={`font-medium ${product.isAvailable ? "text-slate-900" : "text-slate-400"}`}>{product.name}</p>
-            {product.description && <p className="text-sm text-slate-500">{product.description}</p>}
-            <p className="mt-1 text-sm font-semibold text-slate-700">₹{product.basePrice}</p>
-            {!product.isAvailable && <p className="text-xs text-red-600">Currently out of stock</p>}
+          <div className="absolute top-1.5 right-1.5">
+            <FavoriteButton targetType="PRODUCT" targetId={product.id} />
           </div>
         </div>
-        <FavoriteButton targetType="PRODUCT" targetId={product.id} />
       </div>
 
       {canOrder && product.isAvailable && (
-        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+        <div className="space-y-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3">
           {product.variants.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {product.variants.map((v) => (
-                <label key={v.id} className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${variantId === v.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-600"}`}>
+                <label
+                  key={v.id}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${variantId === v.id ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-600"}`}
+                >
                   <input type="radio" name={`variant-${product.id}`} className="hidden" checked={variantId === v.id} onChange={() => setVariantId(v.id)} />
                   {v.name} (₹{v.price})
                 </label>
@@ -92,16 +102,18 @@ export function MenuProductCard({
           {product.addons.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {product.addons.map((a) => (
-                <label key={a.id} className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${addonIds.includes(a.id) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-600"}`}>
-                  <input type="checkbox" className="hidden" checked={addonIds.includes(a.id)} onChange={() => toggleAddon(a.id)} />
-                  + {a.name} (₹{a.price})
+                <label
+                  key={a.id}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${addonIds.includes(a.id) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-600"}`}
+                >
+                  <input type="checkbox" className="hidden" checked={addonIds.includes(a.id)} onChange={() => toggleAddon(a.id)} />+ {a.name} (₹{a.price})
                 </label>
               ))}
             </div>
           )}
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center rounded-md border border-slate-300">
+            <div className="flex items-center rounded-md border border-slate-300 bg-white">
               <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="px-2 py-1 text-slate-600 hover:bg-slate-50">
                 −
               </button>

@@ -7,6 +7,10 @@ export interface PublicRestaurant {
   hasLogo: boolean;
 }
 
+export interface PublicRestaurantDetail extends PublicRestaurant {
+  description: string | null;
+}
+
 export interface MenuVariant {
   id: string;
   name: string;
