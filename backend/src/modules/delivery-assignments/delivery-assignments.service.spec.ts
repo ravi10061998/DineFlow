@@ -90,6 +90,38 @@ describe("DeliveryAssignmentsService", () => {
     });
   });
 
+  describe("findForOrderWithDistance", () => {
+    it("returns null when there's no assignment for the order", async () => {
+      assignmentsRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.findForOrderWithDistance("o1", "12.9716", "77.5946");
+
+      expect(result).toBeNull();
+    });
+
+    it("computes a real distance when both the order and the partner have coordinates", async () => {
+      assignmentsRepo.findOne.mockResolvedValue({
+        id: "a1",
+        deliveryPartner: { currentLatitude: "13.00", currentLongitude: "77.60" },
+      });
+
+      const result = await service.findForOrderWithDistance("o1", "12.9716", "77.5946");
+
+      expect(result!.distanceRemainingKm).toBeGreaterThan(0);
+    });
+
+    it("leaves distanceRemainingKm null when either side lacks coordinates", async () => {
+      assignmentsRepo.findOne.mockResolvedValue({
+        id: "a1",
+        deliveryPartner: { currentLatitude: null, currentLongitude: null },
+      });
+
+      const result = await service.findForOrderWithDistance("o1", "12.9716", "77.5946");
+
+      expect(result!.distanceRemainingKm).toBeNull();
+    });
+  });
+
   describe("ownership and transitions", () => {
     it("refuses an action on an assignment that belongs to a different partner", async () => {
       partnersRepo.findOne.mockResolvedValue({ id: "partner-a", userId: "u-a" });

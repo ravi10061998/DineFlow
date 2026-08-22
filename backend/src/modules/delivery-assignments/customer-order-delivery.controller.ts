@@ -17,8 +17,8 @@ export class CustomerOrderDeliveryController {
   @Get()
   async getDelivery(@Param("orderId", ParseUUIDPipe) orderId: string, @CurrentUser() user: AuthenticatedUser) {
     // findOneOrThrow's customerId scope 404s on any order that isn't the caller's own — no separate ownership check needed.
-    await this.ordersService.findOneOrThrow(orderId, { customerId: user.userId });
-    const assignment = await this.assignmentsService.findForOrder(orderId);
+    const order = await this.ordersService.findOneOrThrow(orderId, { customerId: user.userId });
+    const assignment = await this.assignmentsService.findForOrderWithDistance(orderId, order.deliveryLatitude, order.deliveryLongitude);
     return { message: "Delivery status fetched", data: assignment };
   }
 }

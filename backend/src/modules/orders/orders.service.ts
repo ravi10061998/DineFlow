@@ -120,6 +120,8 @@ export class OrdersService {
         deliveryState: address.state,
         deliveryPostalCode: address.postalCode,
         deliveryCountry: address.country,
+        deliveryLatitude: address.latitude,
+        deliveryLongitude: address.longitude,
         subtotal: cart.subtotal,
         commissionAmount: commission.platformAmount.toFixed(2),
         restaurantPayoutAmount: commission.restaurantAmount.toFixed(2),

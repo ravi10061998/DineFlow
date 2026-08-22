@@ -16,8 +16,8 @@ export class RestaurantOrderDeliveryController {
 
   @Get()
   async getDelivery(@Param("orderId", ParseUUIDPipe) orderId: string, @CurrentUser() user: AuthenticatedUser) {
-    await this.ordersService.findOneOrThrow(orderId, { restaurantId: user.restaurantId! });
-    const assignment = await this.assignmentsService.findForOrder(orderId);
+    const order = await this.ordersService.findOneOrThrow(orderId, { restaurantId: user.restaurantId! });
+    const assignment = await this.assignmentsService.findForOrderWithDistance(orderId, order.deliveryLatitude, order.deliveryLongitude);
     return { message: "Delivery status fetched", data: assignment };
   }
 }

@@ -106,6 +106,28 @@ export class DeliveryAssignmentsService {
     });
   }
 
+  /**
+   * Delivery Tracking (Module 22): the same assignment lookup, plus how far the
+   * partner's last-reported location is from where the order is actually going —
+   * only computed when both points exist, never fabricated from a missing one.
+   */
+  async findForOrderWithDistance(
+    orderId: string,
+    deliveryLat: string | null,
+    deliveryLng: string | null,
+  ): Promise<(DeliveryAssignment & { distanceRemainingKm: number | null }) | null> {
+    const assignment = await this.findForOrder(orderId);
+    if (!assignment) {
+      return null;
+    }
+    const partner = assignment.deliveryPartner;
+    const hasBothPoints = deliveryLat !== null && deliveryLng !== null && partner.currentLatitude !== null && partner.currentLongitude !== null;
+    const distanceRemainingKm = hasBothPoints
+      ? Math.round(this.haversineKm(Number(deliveryLat), Number(deliveryLng), Number(partner.currentLatitude), Number(partner.currentLongitude)) * 10) / 10
+      : null;
+    return { ...assignment, distanceRemainingKm };
+  }
+
   findAllForAdmin(): Promise<DeliveryAssignment[]> {
     return this.assignmentsRepository.find({
       relations: { order: true, deliveryPartner: { user: true } },

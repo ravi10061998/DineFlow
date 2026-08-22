@@ -86,6 +86,13 @@ export class Order extends BaseEntity {
   @Column({ name: "delivery_country", type: "varchar", length: 2 })
   deliveryCountry!: string;
 
+  /** Snapshotted from the address at checkout (Module 22) — null if the original address had none. Feeds Delivery Tracking's distance-remaining calculation. */
+  @Column({ name: "delivery_latitude", type: "decimal", precision: 9, scale: 6, nullable: true })
+  deliveryLatitude!: string | null;
+
+  @Column({ name: "delivery_longitude", type: "decimal", precision: 9, scale: 6, nullable: true })
+  deliveryLongitude!: string | null;
+
   // --- Snapshotted money — see order_items for the per-line snapshot ---
   @Column({ type: "decimal", precision: 10, scale: 2 })
   subtotal!: string;

@@ -13,4 +13,6 @@ export interface DeliveryAssignment {
   pickedUpAt: string | null;
   deliveredAt: string | null;
   createdAt: string;
+  /** Only present once both the order's delivery point and the partner's last-shared location exist. */
+  distanceRemainingKm?: number | null;
 }

@@ -132,6 +132,8 @@ describe("OrdersService", () => {
         restaurantPayoutAmount: "306.00",
         deliveryFee: "20.00",
         deliveryDistanceKm: null,
+        deliveryLatitude: null,
+        deliveryLongitude: null,
         totalAmount: "360.00",
         status: OrderStatus.PLACED,
       });
