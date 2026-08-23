@@ -15,6 +15,7 @@
     "build": "npm run build -w frontend && npm run build -w backend"
   },
   "devDependencies": {
-    "concurrently": "^9.0.1"
+    "concurrently": "^9.0.1",
+    "react-native": "0.81.5"
   }
 }
