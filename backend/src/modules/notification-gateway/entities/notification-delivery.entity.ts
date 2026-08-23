@@ -4,6 +4,7 @@ import { BaseEntity } from "../../../common/entities/base.entity";
 export enum NotificationChannel {
   EMAIL = "EMAIL",
   SMS = "SMS",
+  PUSH = "PUSH",
 }
 
 export enum NotificationDeliveryStatus {

@@ -7,6 +7,7 @@
     "expo": "54",
     "expo-constants": "~18.0.14",
     "expo-linking": "~8.0.12",
+    "expo-location": "~19.0.8",
     "expo-modules-core": "~3.0.30",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",

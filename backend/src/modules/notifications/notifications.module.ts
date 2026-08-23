@@ -6,9 +6,10 @@ import { CustomerNotificationsController } from "./customer-notifications.contro
 import { OrdersModule } from "../orders/orders.module";
 import { UsersModule } from "../users/users.module";
 import { NotificationGatewayModule } from "../notification-gateway/notification-gateway.module";
+import { PushTokensModule } from "../push-tokens/push-tokens.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification]), OrdersModule, UsersModule, NotificationGatewayModule],
+  imports: [TypeOrmModule.forFeature([Notification]), OrdersModule, UsersModule, NotificationGatewayModule, PushTokensModule],
   controllers: [CustomerNotificationsController],
   providers: [NotificationsService],
 })

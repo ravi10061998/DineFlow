@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotificationDelivery, NotificationChannel, NotificationDeliveryStatus } from "./entities/notification-delivery.entity";
-import { NOTIFICATION_GATEWAY, NotificationGateway, SendEmailParams, SendSmsParams } from "./gateways/notification-gateway.interface";
+import { NOTIFICATION_GATEWAY, NotificationGateway, SendEmailParams, SendPushParams, SendSmsParams } from "./gateways/notification-gateway.interface";
 
 /** Optional context recorded on the delivery-log row so an admin can trace which domain event caused a send. */
 export interface DeliveryContext {
@@ -32,6 +32,11 @@ export class NotificationDispatchService {
   async sendSms(params: SendSmsParams, context: DeliveryContext = {}): Promise<void> {
     const status = await this.attempt(() => this.gateway.sendSms(params));
     await this.record(NotificationChannel.SMS, params.to, null, params.body, status, context);
+  }
+
+  async sendPush(params: SendPushParams, context: DeliveryContext = {}): Promise<void> {
+    const status = await this.attempt(() => this.gateway.sendPush(params));
+    await this.record(NotificationChannel.PUSH, params.to, params.title, params.body, status, context);
   }
 
   findAllForAdmin(): Promise<NotificationDelivery[]> {

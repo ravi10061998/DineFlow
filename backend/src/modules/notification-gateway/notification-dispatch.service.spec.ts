@@ -7,11 +7,11 @@ import { NOTIFICATION_GATEWAY } from "./gateways/notification-gateway.interface"
 describe("NotificationDispatchService", () => {
   let service: NotificationDispatchService;
   let repo: { create: jest.Mock; save: jest.Mock; find: jest.Mock };
-  let gateway: { sendEmail: jest.Mock; sendSms: jest.Mock };
+  let gateway: { sendEmail: jest.Mock; sendSms: jest.Mock; sendPush: jest.Mock };
 
   beforeEach(async () => {
     repo = { create: jest.fn((x) => x), save: jest.fn(async (x) => x), find: jest.fn().mockResolvedValue([]) };
-    gateway = { sendEmail: jest.fn(), sendSms: jest.fn() };
+    gateway = { sendEmail: jest.fn(), sendSms: jest.fn(), sendPush: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -57,5 +57,22 @@ describe("NotificationDispatchService", () => {
     await service.sendEmail({ to: "casey@example.com", subject: "Hi", body: "Body" });
 
     expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ relatedType: null, relatedId: null }));
+  });
+
+  it("records a PUSH delivery with the title as the subject", async () => {
+    await service.sendPush({ to: "ExponentPushToken[abc]", title: "Order confirmed", body: "Your order is on its way" });
+
+    expect(gateway.sendPush).toHaveBeenCalledWith({ to: "ExponentPushToken[abc]", title: "Order confirmed", body: "Your order is on its way" });
+    expect(repo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ channel: NotificationChannel.PUSH, recipient: "ExponentPushToken[abc]", subject: "Order confirmed" }),
+    );
+  });
+
+  it("records a FAILED push delivery, without throwing, when the gateway rejects (e.g. an expired token)", async () => {
+    gateway.sendPush.mockRejectedValue(new Error("DeviceNotRegistered"));
+
+    await expect(service.sendPush({ to: "ExponentPushToken[stale]", title: "Hi", body: "Body" })).resolves.toBeUndefined();
+
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ channel: NotificationChannel.PUSH, status: NotificationDeliveryStatus.FAILED }));
   });
 });

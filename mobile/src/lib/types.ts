@@ -257,6 +257,32 @@ export interface StoreProduct {
   orderCount: number;
 }
 
+export interface BlogCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface Blog {
+  id: string;
+  title: string;
+  slug: string;
+  coverImageUrl: string | null;
+  category: BlogCategory | null;
+  authorName: string;
+  excerpt: string;
+  content: string;
+  readingTimeMinutes: number;
+  publishedAt: string | null;
+}
+
+export interface PaginatedBlogs {
+  items: Blog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface HomeFeed {
   banners: Banner[];
   categories: FoodCategory[];
@@ -265,7 +291,12 @@ export interface HomeFeed {
   popularProducts: StoreProduct[];
   trendingProducts: StoreProduct[];
   offers: Offer[];
-  blogs: unknown[];
+  blogs: Blog[];
+}
+
+export interface HomePersonalization {
+  recommendedRestaurants: StoreRestaurant[];
+  recentlyOrdered: StoreProduct[];
 }
 
 export type FavoriteTargetType = "RESTAURANT" | "PRODUCT";

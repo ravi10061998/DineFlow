@@ -18,6 +18,7 @@ export default function RootLayout() {
           <Stack.Screen name="addresses" options={{ headerShown: true, title: "Delivery addresses" }} />
           <Stack.Screen name="favorites" options={{ headerShown: true, title: "Favorites" }} />
           <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
+          <Stack.Screen name="blogs/[slug]" options={{ headerShown: true, title: "Article" }} />
         </Stack>
       </AuthProvider>
     </SafeAreaProvider>

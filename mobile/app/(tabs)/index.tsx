@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Location from "expo-location";
 import { api } from "../../src/lib/api-client";
 import { useApiQuery } from "../../src/lib/use-api-query";
-import type { AppNotification, HomeFeed, Offer, PublicRestaurant, StoreProduct, StoreRestaurant } from "../../src/lib/types";
+import { getErrorMessage } from "../../src/lib/errors";
+import type { AppNotification, Blog, HomeFeed, HomePersonalization, Offer, PublicRestaurant, StoreProduct, StoreRestaurant } from "../../src/lib/types";
 import { ErrorBanner } from "../../src/components/ui/ErrorBanner";
 import { LoadingView } from "../../src/components/ui/LoadingView";
 import { StarRating } from "../../src/components/ui/StarRating";
@@ -64,6 +67,20 @@ function ProductChip({ product, onPress }: { product: StoreProduct; onPress: () 
   );
 }
 
+function BlogChip({ blog, onPress }: { blog: Blog; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} className="w-48 overflow-hidden rounded-xl border border-slate-200 bg-white active:opacity-80">
+      <RemoteImage src={blog.coverImageUrl} emoji="📰" className="h-24 w-48" />
+      <View className="gap-0.5 p-2.5">
+        <Text className="text-sm font-semibold text-slate-900" numberOfLines={2}>
+          {blog.title}
+        </Text>
+        <Text className="text-xs text-slate-500">{blog.readingTimeMinutes} min read</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function OfferChip({ offer }: { offer: Offer }) {
   const discount = offer.discountType === "PERCENTAGE" ? `${offer.discountValue}% off` : `₹${offer.discountValue} off`;
   return (
@@ -85,6 +102,39 @@ export default function HomeScreen() {
   );
   const { data: notifications } = useApiQuery(() => api.get<AppNotification[]>("/customer/me/notifications"));
   const { data: allRestaurants, loading: allLoading } = useApiQuery(() => api.get<PublicRestaurant[]>("/restaurants"));
+  // Personalization is a separate call from the public /store/home aggregate — the app
+  // requires login up front (see the tabs layout's scope note), so this always runs for a
+  // real session, unlike web where it's conditional on an anonymous visitor being logged in.
+  const { data: personalization } = useApiQuery(() => api.get<HomePersonalization>("/customer/me/home-personalization"));
+
+  // Nearby restaurants: deliberately not fetched automatically on mount (unlike the other
+  // sections) — it requires the OS location permission prompt, and firing that unprompted on
+  // every Home load would be a bad first impression. Only requested when the user taps in.
+  const [nearby, setNearby] = useState<StoreRestaurant[] | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyError, setNearbyError] = useState<string | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+
+  async function loadNearby() {
+    setNearbyError(null);
+    setNearbyLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationDenied(true);
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const results = await api.get<StoreRestaurant[]>(
+        `/store/restaurants/nearby?lat=${position.coords.latitude}&lng=${position.coords.longitude}`,
+      );
+      setNearby(results);
+    } catch (err) {
+      setNearbyError(getErrorMessage(err));
+    } finally {
+      setNearbyLoading(false);
+    }
+  }
 
   const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
 
@@ -153,6 +203,14 @@ export default function HomeScreen() {
           </HorizontalSection>
         )}
 
+        {personalization && personalization.recommendedRestaurants.length > 0 && (
+          <HorizontalSection title="Recommended for you">
+            {personalization.recommendedRestaurants.map((r) => (
+              <RestaurantChip key={r.id} restaurant={r} onPress={() => router.push(`/restaurant/${r.id}`)} />
+            ))}
+          </HorizontalSection>
+        )}
+
         {feed && feed.popularRestaurants.length > 0 && (
           <HorizontalSection title="Popular near everyone">
             {feed.popularRestaurants.map((r) => (
@@ -161,10 +219,70 @@ export default function HomeScreen() {
           </HorizontalSection>
         )}
 
+        <View className="mb-5">
+          <SectionHeader title="Nearby restaurants" />
+          {nearby ? (
+            nearby.length === 0 ? (
+              <Text className="px-4 text-sm text-slate-400">No restaurants deliver to your area yet.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3 px-4">
+                {nearby.map((r) => (
+                  <RestaurantChip key={r.id} restaurant={r} onPress={() => router.push(`/restaurant/${r.id}`)} />
+                ))}
+              </ScrollView>
+            )
+          ) : (
+            <View className="mx-4 items-center rounded-xl border border-dashed border-slate-200 p-5">
+              {locationDenied ? (
+                <Text className="text-center text-sm text-slate-400">
+                  Location permission denied — enable it in your phone's settings to see restaurants near you.
+                </Text>
+              ) : (
+                <>
+                  <Text className="mb-3 text-center text-sm text-slate-500">Share your location to see restaurants near you.</Text>
+                  <Pressable
+                    onPress={loadNearby}
+                    disabled={nearbyLoading}
+                    className="rounded-lg bg-slate-900 px-4 py-2"
+                    style={{ opacity: nearbyLoading ? 0.5 : 1 }}
+                  >
+                    <Text className="text-sm font-semibold text-white">{nearbyLoading ? "Finding restaurants…" : "Use my location"}</Text>
+                  </Pressable>
+                  <ErrorBanner message={nearbyError} />
+                </>
+              )}
+            </View>
+          )}
+        </View>
+
         {feed && feed.popularProducts.length > 0 && (
           <HorizontalSection title="Popular dishes">
             {feed.popularProducts.map((p) => (
               <ProductChip key={p.id} product={p} onPress={() => router.push(`/restaurant/${p.restaurantId}`)} />
+            ))}
+          </HorizontalSection>
+        )}
+
+        {personalization && personalization.recentlyOrdered.length > 0 && (
+          <HorizontalSection title="Order again">
+            {personalization.recentlyOrdered.map((p) => (
+              <ProductChip key={p.id} product={p} onPress={() => router.push(`/restaurant/${p.restaurantId}`)} />
+            ))}
+          </HorizontalSection>
+        )}
+
+        {feed && feed.trendingProducts.length > 0 && (
+          <HorizontalSection title="Trending this month">
+            {feed.trendingProducts.map((p) => (
+              <ProductChip key={p.id} product={p} onPress={() => router.push(`/restaurant/${p.restaurantId}`)} />
+            ))}
+          </HorizontalSection>
+        )}
+
+        {feed && feed.blogs.length > 0 && (
+          <HorizontalSection title="From the food blog">
+            {feed.blogs.map((b) => (
+              <BlogChip key={b.id} blog={b} onPress={() => router.push(`/blogs/${b.slug}`)} />
             ))}
           </HorizontalSection>
         )}

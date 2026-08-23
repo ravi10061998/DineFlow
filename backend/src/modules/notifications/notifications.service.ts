@@ -6,6 +6,7 @@ import { Notification, NotificationType } from "./entities/notification.entity";
 import { OrdersService } from "../orders/orders.service";
 import { UsersService } from "../users/users.service";
 import { NotificationDispatchService } from "../notification-gateway/notification-dispatch.service";
+import { PushTokensService } from "../push-tokens/push-tokens.service";
 import { ORDER_STATUS_CHANGED_EVENT, OrderStatusChangedEvent } from "../../common/events/order-status-changed.event";
 import { PAYMENT_SUCCEEDED_EVENT, PaymentSucceededEvent } from "../../common/events/payment-succeeded.event";
 import { REFUND_SUCCEEDED_EVENT, RefundSucceededEvent } from "../../common/events/refund-succeeded.event";
@@ -17,6 +18,7 @@ export class NotificationsService {
     private readonly ordersService: OrdersService,
     private readonly usersService: UsersService,
     private readonly notificationDispatchService: NotificationDispatchService,
+    private readonly pushTokensService: PushTokensService,
   ) {}
 
   findAllForUser(userId: string): Promise<Notification[]> {
@@ -81,6 +83,19 @@ export class NotificationsService {
     const user = await this.usersService.findById(userId).catch(() => null);
     if (!user) return;
     await this.notificationDispatchService.sendEmail({ to: user.email, subject: title, body }, { relatedType, relatedId: relatedOrderId });
+
+    // Same best-effort principle as the email above — a customer with no registered
+    // device (never opened the app, or denied notification permission) is the normal
+    // case, not an error, so an empty token list is silently a no-op.
+    const tokens = await this.pushTokensService.findAllForUser(userId);
+    await Promise.all(
+      tokens.map((t) =>
+        this.notificationDispatchService.sendPush(
+          { to: t.token, title, body, data: { relatedType, relatedId: relatedOrderId } },
+          { relatedType, relatedId: relatedOrderId },
+        ),
+      ),
+    );
   }
 
   private describeTransition(orderNumber: string, toStatus: string): string {

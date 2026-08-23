@@ -12,14 +12,27 @@ export interface SendSmsParams {
   body: string;
 }
 
+export interface SendPushParams {
+  /** An Expo push token (e.g. "ExponentPushToken[...]"), not a raw device token. */
+  to: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}
+
 /**
- * Swappable email/SMS gateway. `MockNotificationGateway` is the only
- * implementation today (no real SendGrid/Twilio account exists in this dev
- * environment) — shaped so a real adapter later swaps in as one new class,
- * same pattern as `PaymentGateway`/`PayoutGateway`.
+ * Swappable email/SMS/push gateway. Email and SMS stay mocked in
+ * `MockNotificationGateway` (no real SendGrid/Twilio account exists in this
+ * dev environment) — shaped so a real adapter later swaps in as one new
+ * class, same pattern as `PaymentGateway`/`PayoutGateway`. Push is the odd
+ * one out: Expo's push API (https://exp.host/--/api/v2/push/send) is a real,
+ * free, unauthenticated HTTP endpoint that genuinely delivers to real
+ * devices — there's nothing to mock, so `MockNotificationGateway.sendPush()`
+ * makes a real call despite the class's name.
  */
 export interface NotificationGateway {
   readonly name: string;
   sendEmail(params: SendEmailParams): Promise<void>;
   sendSms(params: SendSmsParams): Promise<void>;
+  sendPush(params: SendPushParams): Promise<void>;
 }

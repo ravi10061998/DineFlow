@@ -44,6 +44,7 @@ import { DeliveryPartnerLedgerModule } from "./modules/delivery-partner-ledger/d
 import { CouponsModule } from "./modules/coupons/coupons.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { NotificationGatewayModule } from "./modules/notification-gateway/notification-gateway.module";
+import { PushTokensModule } from "./modules/push-tokens/push-tokens.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
@@ -63,6 +64,7 @@ import { AppController } from "./app.controller";
     UsersModule,
     RolesModule,
     NotificationGatewayModule,
+    PushTokensModule,
     AuthModule,
     RestaurantsModule,
     SubscriptionsModule,
