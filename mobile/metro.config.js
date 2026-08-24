@@ -22,12 +22,31 @@ const config = getDefaultConfig(__dirname);
 // invisible until real-device verification surfaced it.
 //
 // Fix: force just these three true-singleton packages to always resolve to this project's
-// own nested copy via extraNodeModules, leaving every other package's normal hierarchical
-// resolution (including the ones that only exist hoisted at the workspace root) untouched.
+// own nested copy, leaving every other package's normal hierarchical resolution (including
+// the ones that only exist hoisted at the workspace root) untouched.
+//
+// `resolver.extraNodeModules` is NOT a forced override — Metro only consults it as a
+// FALLBACK when a module can't otherwise be resolved. Since `react`/`react-dom`/`scheduler`
+// genuinely DO exist and resolve fine from wherever a root-hoisted package (like
+// react-native-safe-area-context) looks for them, extraNodeModules alone never actually took
+// effect — confirmed by this exact crash surviving that "fix" (`useContext` returning null
+// because SafeAreaProvider's own `react` require resolved to a DIFFERENT copy than the one
+// actually driving the render, so its internal hook dispatcher was never initialized).
+//
+// `resolver.resolveRequest` is Metro's real override hook, checked before any other
+// resolution. Rather than hand-constructing paths (subpaths, package.json `exports` fields,
+// and platform-specific extensions all need to be handled correctly), this redirects the
+// resolution's *origin* to this project's own package.json for just these three names —
+// Metro's own default resolver then does a normal upward node_modules walk from THAT fake
+// origin, which finds mobile's own nested copy first, exactly as if the request had genuinely
+// come from inside this project. This is the standard Expo/Metro monorepo pattern for
+// enforcing a true singleton, not something bespoke to this bug.
 const REACT_SINGLETONS = ['react', 'react-dom', 'scheduler'];
-config.resolver.extraNodeModules = {
-  ...config.resolver.extraNodeModules,
-  ...Object.fromEntries(REACT_SINGLETONS.map((name) => [name, path.resolve(__dirname, 'node_modules', name)])),
+const projectPackageJson = path.resolve(__dirname, 'package.json');
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const isSingleton = REACT_SINGLETONS.some((name) => moduleName === name || moduleName.startsWith(`${name}/`));
+  const resolveContext = isSingleton ? { ...context, originModulePath: projectPackageJson } : context;
+  return context.resolveRequest(resolveContext, moduleName, platform);
 };
 
 module.exports = withNativeWind(config, { input: './global.css' });
