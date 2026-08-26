@@ -487,3 +487,31 @@ npm run build
 ```
 
 Builds both `frontend` and `backend` (`backend/dist`, `frontend/.next`).
+
+## Completed: Module 34 (Deployment) — 2026-08-27 — a real, live free dev environment
+
+`DEPLOYMENT.md`'s "Quick start" section stopped being a runbook nobody had clicked through and
+became an actual deployment during this session, tracking the `dev` branch on free tiers:
+
+- **Backend**: [Render](https://dineflow-dev-backend.onrender.com) — free web service + free
+  Postgres, provisioned from the `render.yaml` Blueprint at the repo root. Real bugs found only by
+  actually deploying, not by reading Render's docs: `preDeployCommand` is a paid-tier-only field
+  (free tier rejects the Blueprint outright if it's present — migrations moved back to a fully
+  manual step); `NODE_ENV=production` is visible during the *build* step too, not just runtime,
+  which made `npm ci` silently skip `devDependencies` and fail with `nest: not found` (fixed with
+  `--include=dev`); Render's own Postgres presents a self-signed cert on its internal connection,
+  which the default `rejectUnauthorized: true` rejects (`DB_SSL_REJECT_UNAUTHORIZED=false` is the
+  documented escape hatch for exactly this, already flagged as a possibility in Module 2's own
+  config comments). Also found and fixed: `database/data-source.ts` (used by the migration CLI)
+  never read `DB_SSL` at all, only `config/typeorm.config.ts` (used by the running app) did — the
+  migration CLI had never actually been run against any SSL-requiring Postgres before this.
+- **Frontend**: [Vercel](https://dine-flow-frontend-virid.vercel.app) — free Hobby tier, Root
+  Directory `frontend`, `NEXT_PUBLIC_API_URL` pointed at the Render backend above.
+- **Database**: migrations (all 36) and the first admin seed were run once, directly against
+  Render's Postgres from outside its network (its "External Database URL"), verified for real —
+  `/api/v1/health` returns `ok` and a real login against the live database returns a valid JWT
+  with the full permission set, not just "the server process is up."
+- **Known free-tier trade-offs, not fixed and not meant to be**: the Render web service spins
+  down after 15 minutes idle (first request after that takes 30-50s), and its free Postgres
+  expires after 30 days. Fine for testing the `dev` branch; not the target for a real production
+  deploy, which is the next, separate, not-yet-started step.
