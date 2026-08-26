@@ -14,7 +14,7 @@
     "seed:admin": "ts-node src/database/seed-admin.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand"
   },
   "jest": {
     "moduleFileExtensions": ["js", "json", "ts"],
