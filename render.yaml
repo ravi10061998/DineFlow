@@ -14,7 +14,12 @@ services:
     # workspace hoisting has caused real, repeated breakage under partial/scoped installs (see
     # README's mobile-app sections), so "the exact same install as everywhere else" is worth
     # more here than the extra build time from also installing frontend/mobile's dependencies.
-    buildCommand: npm ci && npm run build -w backend
+    # --include=dev is required despite this being a "production" deploy: NODE_ENV=production
+    # is set below as a runtime env var, but Render exposes envVars during the build step too,
+    # and npm ci honors NODE_ENV=production by silently skipping devDependencies — which is
+    # exactly where @nestjs/cli lives (the `nest build` command backend's own build script
+    # calls). Without this flag the build fails with "sh: nest: not found" (exit 127).
+    buildCommand: npm ci --include=dev && npm run build -w backend
     # preDeployCommand (the natural place for `npm run migration:run -w backend`) is a paid-tier
     # Render feature — free-tier services reject a Blueprint that sets it at all. Migrations stay
     # the deliberate manual step DEPLOYMENT.md already describes: run once against the DB's
