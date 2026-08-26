@@ -52,6 +52,13 @@ services:
           property: database
       - key: DB_SSL
         value: "true"
+      # Render's own Postgres presents a self-signed certificate on its internal connection —
+      # Node's default TLS trust store doesn't recognize it, so the default
+      # rejectUnauthorized:true (see typeorm.config.ts) fails every connection attempt with
+      # "self-signed certificate". This is the documented escape hatch DEPLOYMENT.md already
+      # describes, needed here specifically because this is Render's own managed Postgres.
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES_IN
