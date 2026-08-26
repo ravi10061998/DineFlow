@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/restaurants", label: "Restaurants" },
+  { href: "/admin/banners", label: "Banners" },
   { href: "/admin/delivery-partners", label: "Delivery Partners" },
   { href: "/admin/delivery-assignments", label: "Delivery Assignments" },
   { href: "/admin/delivery-fee", label: "Delivery Fee Settings" },
