@@ -1,0 +1,122 @@
+name: CI
+
+# Module 33 in the project's own module sequence. Deliberately does NOT build or publish a
+# Docker image — Module 32 (Docker) was explicitly deferred (this dev environment has no
+# Docker installed at all, not even via WSL, so nothing in that module could ever be verified
+# here). This workflow's own jobs run on GitHub's hosted runners, which DO have Docker
+# available for the Postgres service container below — that's GitHub's infrastructure doing
+# the containerizing, not anything this repository builds or owns yet.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# A second push to the same branch/PR cancels whatever CI run is already in flight for it,
+# rather than letting both finish — avoids wasting runner minutes on a commit nobody cares
+# about anymore.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dineflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # .env.test is gitignored and won't exist on this checkout — env-setup.js's dotenv.config()
+      # call silently no-ops when the file is missing, so these job-level vars (matching the
+      # postgres service container above) are what global-setup.js/env-setup.js actually see.
+      # See backend/.env.test.example for the equivalent local-dev file.
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: dineflow_test
+      CORS_ORIGIN: http://localhost:3000
+      JWT_ACCESS_SECRET: ci-test-only-access-secret-not-for-real-use
+      JWT_ACCESS_EXPIRES_IN: 15m
+      PAYMENT_GATEWAY_KEY_ID: mock_key_id_ci
+      PAYMENT_GATEWAY_SECRET: ci-test-only-payment-secret
+      PAYMENT_WEBHOOK_SECRET: ci-test-only-webhook-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned to match this project's own dev environment exactly (not just "a recent
+          # LTS") — this session hit several genuinely Node-version-specific bugs (native
+          # TypeScript type-stripping behavior, an ESM loader path-scheme regression) that a
+          # different Node version in CI could either hide or newly trigger.
+          node-version: 24
+          cache: npm
+
+      # Installs every workspace (frontend/mobile included, even though this job only needs
+      # backend's deps) — slower than a scoped install, but this project's own history this
+      # session found repeated, genuine breakage from npm's workspace hoisting behaving
+      # differently under partial/scoped installs. One full `npm ci` from the single root
+      # lockfile is the same install every contributor's machine and this CI job both run,
+      # which is the actual property worth optimizing for over a few saved seconds.
+      - run: npm ci
+
+      - name: Build
+        run: npm run build -w backend
+
+      - name: Unit tests
+        run: npm test -w backend
+
+      - name: E2E tests
+        run: npm run test:e2e -w backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # `next build` also does frontend's real type-check; `npm run lint -w frontend` is
+      # deliberately NOT run as a blocking gate here — it already fails on the
+      # react-hooks/set-state-in-effect rule against pre-existing, working code from well
+      # before this workflow existed (documented in this README's Module 16 section), and
+      # `next build` doesn't run that rule at all. Making CI red for a known, already-triaged,
+      # pre-existing issue would just teach everyone to ignore a red CI badge.
+      - name: Build
+        run: npm run build -w frontend
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck -w mobile
+      - name: Unit tests
+        run: npm test -w mobile
+      # Deliberately does not attempt an Expo/Metro bundle build here — this dev environment's
+      # own experience this session was that several of the real bugs found (a duplicate-React
+      # crash, an npm-workspace hoisting mismatch, an ESM path-scheme regression) were only
+      # ever reachable by actually running the bundler, sometimes only on a real device. A
+      # green typecheck+unit-test job here is a real, useful, fast signal — it is not a
+      # substitute for the Playwright/real-device verification this project's mobile work has
+      # relied on throughout, which stays a manual step for now.
