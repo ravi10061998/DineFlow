@@ -1,13 +1,16 @@
 # DineFlow
 
-Multi-restaurant ordering, payment & delivery management platform. A monorepo with a Next.js (TypeScript) frontend and a NestJS (TypeScript, TypeORM, PostgreSQL) backend, managed as npm workspaces, built module by module per the platform spec.
+Multi-restaurant ordering, payment & delivery management platform. A monorepo with a Next.js (TypeScript) frontend, a NestJS (TypeScript, TypeORM, PostgreSQL) backend, and an Expo/React Native mobile app, managed as npm workspaces, built module by module per the platform spec.
 
 ```
 dineflow/
-├── frontend/   # Next.js 16 app (App Router, TypeScript)
+├── frontend/   # Next.js 16 app (App Router, TypeScript) — Admin/Restaurant/Customer web
 ├── backend/    # NestJS API (TypeScript, TypeORM, PostgreSQL, dynamic RBAC)
+├── mobile/     # Expo/React Native app (Customer role only — see its own README section below)
 └── package.json  # root workspace scripts
 ```
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for a real, project-specific deploy runbook (env vars, migration step, recommended platforms per service) — not yet an actual live deployment, see that file's own opening note for why.
 
 ## Prerequisites
 
