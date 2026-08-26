@@ -13,6 +13,68 @@ auto-detect a Node project and build a container *for* you, with no Dockerfile r
 repo. If Module 32 gets picked up later (e.g. on a machine that actually has Docker), the same
 platforms also accept a hand-written Dockerfile instead — this doc doesn't assume either way.
 
+## Quick start: free dev environment (Render + Vercel)
+
+This turns the reference material below into an actual sequence of clicks, for the specific ask
+of "get the `dev` branch running somewhere real and free, for testing, before a later separate
+production deploy." A `render.yaml` Blueprint already sits at the repo root, wired to the `dev`
+branch — Render reads that file directly; there's no service to hand-configure.
+
+Two accounts, in a specific order, because step 2 needs an output value from step 1, and step 3
+needs an output value from step 2. Neither account can be created by me — GitHub OAuth consent and
+billing-adjacent signup flows are yours to click through. What follows is the ordered list.
+
+**Step 1 — Render: database + backend (you do this)**
+1. Sign up at render.com with GitHub (free tier, no card required).
+2. Dashboard → New → Blueprint → select the dineflow repo. Render finds `render.yaml` at the root
+   and shows the `dineflow-dev-db` + `dineflow-dev-backend` resources it defines.
+3. On the review screen, confirm the web service's branch is `dev` (already set in the file).
+4. Click Apply. Render provisions the free Postgres, then builds and deploys the backend.
+   **Expect the first deploy to fail its health check** — `CORS_ORIGIN` has no value yet
+   (`sync: false` in the file means Render deliberately leaves it blank), and
+   `assertProductionConfigIsSafe` refuses to boot without a real one. That's the app correctly
+   refusing to start insecurely, not a broken deploy — step 3 below fixes it.
+5. Note the backend's URL from the dashboard even while it's failing, e.g.
+   `https://dineflow-dev-backend.onrender.com` — needed in step 2.
+
+Free-tier trade-offs worth expecting going in (already flagged earlier in this doc): the web
+service spins down after 15 minutes idle and wakes on the next request with a ~30–50s cold start,
+and the free Postgres instance expires after 30 days and would need recreating. Both are fine for
+testing; neither is what a real production deploy should run on.
+
+**Step 2 — Vercel: frontend (you do this)**
+1. Sign up at vercel.com with GitHub.
+2. New Project → import the same repo.
+3. Root Directory: `frontend`. Framework preset should auto-detect Next.js.
+4. Leave Install Command on its default first — Vercel's monorepo detection looks for the
+   workspace lockfile at the repo root and installs from there even with Root Directory set to a
+   subdirectory. If the deploy log shows it only installed inside `frontend/` and then fails to
+   resolve a workspace dependency, override Install Command to run from the repo root instead
+   (Vercel's project settings expose this override explicitly).
+5. Before deploying: Settings → Git → change the Production Branch from `main` to `dev` — this
+   project is specifically for testing the `dev` branch, not `main`.
+6. Environment Variables: add `NEXT_PUBLIC_API_URL` = `<Render backend URL from step 1>/api/v1`,
+   e.g. `https://dineflow-dev-backend.onrender.com/api/v1`.
+7. Deploy. Note the resulting Vercel URL, e.g. `https://dineflow-xyz.vercel.app`.
+
+**Step 3 — close the loop back on Render (you do this)**
+1. Render dashboard → `dineflow-dev-backend` → Environment → set `CORS_ORIGIN` to the exact
+   Vercel URL from step 2 (no trailing slash).
+2. Save — Render auto-redeploys. The health check should pass this time and the backend goes
+   live for real.
+
+**Step 4 — first admin + end-to-end check (send me the DB's external connection string and I'll
+do this)**
+Migrations already ran automatically via `preDeployCommand` in `render.yaml` — no separate step
+needed for that part. What's left is the one-time admin seed, which needs to run from somewhere
+that can reach the database from outside Render's internal network — Render's Postgres dashboard
+page has a separate "External Connection String" for exactly this. It's a throwaway dev database,
+reasonable to hand over for this: paste it here and I'll run `seed:admin` against it directly, then
+verify `/api/v1/health`, a real login, and CORS the same way the Post-deploy checklist below
+describes — against this actual deployed dev environment, not just locally.
+
+---
+
 ## The three deployables, and why they're independent
 
 - **Backend** (NestJS + Postgres) — the API every other piece calls. Deploy this first.

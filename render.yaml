@@ -1,0 +1,72 @@
+databases:
+  - name: dineflow-dev-db
+    plan: free
+    databaseName: dineflow
+    user: dineflow
+
+services:
+  - name: dineflow-dev-backend
+    type: web
+    runtime: node
+    plan: free
+    branch: dev
+    # A full `npm ci` at the repo root, not scoped to `backend` alone — this monorepo's own npm
+    # workspace hoisting has caused real, repeated breakage under partial/scoped installs (see
+    # README's mobile-app sections), so "the exact same install as everywhere else" is worth
+    # more here than the extra build time from also installing frontend/mobile's dependencies.
+    buildCommand: npm ci && npm run build -w backend
+    # Migrations are a deliberate, separate step from application startup (a design decision
+    # from Module 2, reinforced in DEPLOYMENT.md) — preDeployCommand runs once per deploy,
+    # after the build but before the new version starts serving traffic, which is exactly the
+    # semantics that design wants. Safe here specifically because this free-tier service only
+    # ever runs a single instance — the "two replicas racing to migrate" risk DEPLOYMENT.md
+    # warns about doesn't apply to a one-instance dev/testing environment.
+    preDeployCommand: npm run migration:run -w backend
+    startCommand: node backend/dist/main.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromDatabase:
+          name: dineflow-dev-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: dineflow-dev-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: dineflow-dev-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: dineflow-dev-db
+          property: password
+      - key: DB_DATABASE
+        fromDatabase:
+          name: dineflow-dev-db
+          property: database
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: PAYMENT_GATEWAY_KEY_ID
+        value: mock_key_id_dev
+      - key: PAYMENT_GATEWAY_SECRET
+        generateValue: true
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      # Not set here on purpose: seeding the first admin is a one-time manual command against
+      # the real DB (needs bcrypt hashing, which is why it's a script and not a migration — see
+      # `seed-admin.ts`), not something the running service does on its own from an env var.
+      # See the Quick start walkthrough above for exactly when that command gets run.
+      # Deliberately left unset here (Render calls this "sync: false" — set it manually in the
+      # dashboard instead of the Blueprint baking in a value): the frontend's real Vercel URL
+      # isn't known until AFTER that's deployed, and `assertProductionConfigIsSafe` refuses to
+      # boot without this being a real, explicit value anyway — see DEPLOYMENT.md's walkthrough
+      # for the exact order this gets filled in.
+      - key: CORS_ORIGIN
+        sync: false
