@@ -63,15 +63,18 @@ testing; neither is what a real production deploy should run on.
 2. Save — Render auto-redeploys. The health check should pass this time and the backend goes
    live for real.
 
-**Step 4 — first admin + end-to-end check (send me the DB's external connection string and I'll
-do this)**
-Migrations already ran automatically via `preDeployCommand` in `render.yaml` — no separate step
-needed for that part. What's left is the one-time admin seed, which needs to run from somewhere
-that can reach the database from outside Render's internal network — Render's Postgres dashboard
-page has a separate "External Connection String" for exactly this. It's a throwaway dev database,
-reasonable to hand over for this: paste it here and I'll run `seed:admin` against it directly, then
-verify `/api/v1/health`, a real login, and CORS the same way the Post-deploy checklist below
-describes — against this actual deployed dev environment, not just locally.
+**Step 4 — migrations, first admin, end-to-end check (send me the DB's external connection
+string and I'll do this)**
+Render's free tier doesn't support `preDeployCommand` at all (it rejects the Blueprint outright if
+the field is present) — so unlike the paid-tier path, migrations here are a manual step too, run
+from somewhere that can reach the database from outside Render's internal network. Render's
+Postgres dashboard page has a separate "External Connection String" for exactly this. It's a
+throwaway dev database, reasonable to hand over for this: paste it here and I'll run
+`npm run migration:run -w backend` then `seed:admin` against it directly, then verify
+`/api/v1/health`, a real login, and CORS the same way the Post-deploy checklist below describes —
+against this actual deployed dev environment, not just locally. (The backend service itself will
+sit crash-looping on every boot until migrations have run at least once — Postgres will be up but
+schema-less, so this step isn't optional/deferrable the way it might be on a paid plan.)
 
 ---
 

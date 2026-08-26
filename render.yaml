@@ -15,13 +15,11 @@ services:
     # README's mobile-app sections), so "the exact same install as everywhere else" is worth
     # more here than the extra build time from also installing frontend/mobile's dependencies.
     buildCommand: npm ci && npm run build -w backend
-    # Migrations are a deliberate, separate step from application startup (a design decision
-    # from Module 2, reinforced in DEPLOYMENT.md) — preDeployCommand runs once per deploy,
-    # after the build but before the new version starts serving traffic, which is exactly the
-    # semantics that design wants. Safe here specifically because this free-tier service only
-    # ever runs a single instance — the "two replicas racing to migrate" risk DEPLOYMENT.md
-    # warns about doesn't apply to a one-instance dev/testing environment.
-    preDeployCommand: npm run migration:run -w backend
+    # preDeployCommand (the natural place for `npm run migration:run -w backend`) is a paid-tier
+    # Render feature — free-tier services reject a Blueprint that sets it at all. Migrations stay
+    # the deliberate manual step DEPLOYMENT.md already describes: run once against the DB's
+    # external connection string after each deploy that changes the schema, same as any other
+    # environment this project targets.
     startCommand: node backend/dist/main.js
     healthCheckPath: /api/v1/health
     envVars:
