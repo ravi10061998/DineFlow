@@ -15,9 +15,9 @@ const NAV_ITEMS = [
 export default function CustomerPortalLayout({ children }: { children: ReactNode }) {
   return (
     <RequireAuth roles={["CUSTOMER"]}>
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
         <PortalNav title="My Account" items={NAV_ITEMS} />
-        <main className="flex-1 overflow-x-auto p-8">{children}</main>
+        <main className="flex-1 overflow-x-auto p-4 md:p-8">{children}</main>
       </div>
     </RequireAuth>
   );

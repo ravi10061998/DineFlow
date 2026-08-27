@@ -11,13 +11,13 @@ const DOT_PATTERN =
  */
 export function PortalHero({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-700 px-8 py-10">
+    <div className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-700 px-5 py-6 sm:px-8 sm:py-10">
       <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full bg-yellow-300 opacity-30 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-rose-500 opacity-30 blur-3xl" />
       <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: `url("${DOT_PATTERN}")` }} />
       <div className="relative z-10">
-        <h1 className="text-3xl font-bold text-white">{title}</h1>
-        {subtitle && <div className="mt-2 max-w-xl text-orange-50">{subtitle}</div>}
+        <h1 className="text-2xl font-bold text-white sm:text-3xl">{title}</h1>
+        {subtitle && <div className="mt-2 max-w-xl text-sm text-orange-50 sm:text-base">{subtitle}</div>}
         {children}
       </div>
     </div>
