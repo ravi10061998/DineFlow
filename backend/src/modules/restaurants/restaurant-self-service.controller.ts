@@ -16,21 +16,13 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags } from "@nestjs/swagger";
-import { diskStorage } from "multer";
+import { memoryStorage } from "multer";
 import type { Response } from "express";
-import * as crypto from "crypto";
-import * as fs from "fs";
-import * as path from "path";
 import { CurrentUser, AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { RestaurantMemberGuard } from "./guards/restaurant-member.guard";
 import { RestaurantsService } from "./restaurants.service";
-import {
-  ALLOWED_DOCUMENT_MIME_TYPES,
-  DOCUMENT_UPLOAD_ROOT,
-  MAX_DOCUMENT_SIZE_BYTES,
-  RestaurantDocumentsService,
-} from "./restaurant-documents.service";
-import { ALLOWED_LOGO_MIME_TYPES, LOGO_UPLOAD_ROOT, MAX_LOGO_SIZE_BYTES, RestaurantLogoService } from "./restaurant-logo.service";
+import { ALLOWED_DOCUMENT_MIME_TYPES, MAX_DOCUMENT_SIZE_BYTES, RestaurantDocumentsService } from "./restaurant-documents.service";
+import { ALLOWED_LOGO_MIME_TYPES, MAX_LOGO_SIZE_BYTES, RestaurantLogoService } from "./restaurant-logo.service";
 import { UpdateRestaurantDto } from "./dto/update-restaurant.dto";
 import { SetBusinessHoursDto } from "./dto/set-business-hours.dto";
 import { CreateHolidayDto } from "./dto/create-holiday.dto";
@@ -91,15 +83,10 @@ export class RestaurantSelfServiceController {
   @Post("logo")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (req, _file, cb) => {
-          const restaurantId = (req as any).user.restaurantId as string;
-          const dir = path.join(LOGO_UPLOAD_ROOT, restaurantId);
-          fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname)}`),
-      }),
+      // Buffered in memory, not written to local disk -- the actual destination (local disk in
+      // dev, Cloudflare R2 wherever it's configured) is FileStorageGateway's decision, made after
+      // Multer finishes parsing, not Multer's own. 5MB max makes this a non-issue for memory use.
+      storage: memoryStorage(),
       limits: { fileSize: MAX_LOGO_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_LOGO_MIME_TYPES.includes(file.mimetype)) {
@@ -129,19 +116,7 @@ export class RestaurantSelfServiceController {
   @Post("documents")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (req, _file, cb) => {
-          const restaurantId = (req as any).user.restaurantId as string;
-          const dir = path.join(DOCUMENT_UPLOAD_ROOT, restaurantId);
-          // multer will not create missing directories itself — it just fails the write.
-          fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (_req, file, cb) => {
-          const ext = path.extname(file.originalname);
-          cb(null, `${crypto.randomUUID()}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_DOCUMENT_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_DOCUMENT_MIME_TYPES.includes(file.mimetype)) {
@@ -160,18 +135,10 @@ export class RestaurantSelfServiceController {
     if (!file) {
       throw new BadRequestException("A file is required.");
     }
-    const document = await this.documentsService.recordUpload({
+    const document = await this.documentsService.upload({
       restaurantId: user.restaurantId!,
       type: dto.type,
-      // Stored relative to DOCUMENT_UPLOAD_ROOT, matching the diskStorage destination above.
-      // Always forward-slash, not path.join — this value is persisted, and a
-      // backslash-joined path built on Windows dev would silently fail to
-      // resolve on a Linux deployment (path.join there uses "/" natively and
-      // never treats "\" as a separator).
-      filePath: `${user.restaurantId}/${file.filename}`,
-      originalFileName: file.originalname,
-      mimeType: file.mimetype,
-      fileSizeBytes: file.size,
+      file,
       uploadedByUserId: user.userId,
     });
     return { message: "Document uploaded", data: document };
@@ -190,9 +157,10 @@ export class RestaurantSelfServiceController {
     @Res() res: Response,
   ) {
     const document = await this.documentsService.findOneOrThrow(id, user.restaurantId!);
-    const absolutePath = await this.documentsService.absolutePath(document);
+    const { stream, sizeBytes } = await this.documentsService.read(document);
     res.setHeader("Content-Type", document.mimeType);
     res.setHeader("Content-Disposition", `inline; filename="${document.originalFileName}"`);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 }

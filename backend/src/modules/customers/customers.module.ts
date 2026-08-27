@@ -5,9 +5,10 @@ import { CustomerProfileService } from "./customer-profile.service";
 import { CustomerProfileImagesService } from "./customer-profile-images.service";
 import { CustomerProfileController } from "./customer-profile.controller";
 import { UsersModule } from "../users/users.module";
+import { StorageModule } from "../../common/storage/storage.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CustomerProfile]), UsersModule],
+  imports: [TypeOrmModule.forFeature([CustomerProfile]), UsersModule, StorageModule],
   controllers: [CustomerProfileController],
   providers: [CustomerProfileService, CustomerProfileImagesService],
 })

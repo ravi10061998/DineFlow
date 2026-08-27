@@ -9,11 +9,13 @@ import { RestaurantProductsController } from "./restaurant-products.controller";
 import { AdminProductsController } from "./admin-products.controller";
 import { PublicMenuController } from "./public-menu.controller";
 import { CategoriesModule } from "../categories/categories.module";
+import { StorageModule } from "../../common/storage/storage.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, ProductVariant, ProductAddon]),
     forwardRef(() => CategoriesModule),
+    StorageModule,
   ],
   controllers: [RestaurantProductsController, AdminProductsController, PublicMenuController],
   providers: [ProductsService, ProductImagesService],

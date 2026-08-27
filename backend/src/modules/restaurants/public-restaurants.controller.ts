@@ -66,8 +66,9 @@ export class PublicRestaurantsController {
   @Get(":id/logo")
   async downloadLogo(@Param("id", ParseUUIDPipe) id: string, @Res() res: Response) {
     const restaurant = await this.restaurantsService.findByIdOrThrow(id);
-    const absolutePath = await this.logoService.absolutePath(restaurant);
+    const { stream, sizeBytes } = await this.logoService.read(restaurant);
     res.setHeader("Content-Type", restaurant.logoMimeType!);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 }

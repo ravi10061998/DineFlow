@@ -16,15 +16,12 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags } from "@nestjs/swagger";
-import { diskStorage } from "multer";
+import { memoryStorage } from "multer";
 import type { Response } from "express";
-import * as crypto from "crypto";
-import * as fs from "fs";
-import * as path from "path";
 import { CurrentUser, AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { RestaurantMemberGuard } from "../restaurants/guards/restaurant-member.guard";
 import { ProductsService } from "./products.service";
-import { ProductImagesService, ALLOWED_IMAGE_MIME_TYPES, MAX_IMAGE_SIZE_BYTES, PRODUCT_IMAGE_UPLOAD_ROOT } from "./product-images.service";
+import { ProductImagesService, ALLOWED_IMAGE_MIME_TYPES, MAX_IMAGE_SIZE_BYTES } from "./product-images.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ToggleAvailabilityDto } from "./dto/toggle-availability.dto";
@@ -88,15 +85,7 @@ export class RestaurantProductsController {
   @Post(":id/images")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (req, _file, cb) => {
-          const productId = (req.params as { id: string }).id;
-          const dir = path.join(PRODUCT_IMAGE_UPLOAD_ROOT, productId);
-          fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname)}`),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
@@ -140,9 +129,10 @@ export class RestaurantProductsController {
   ) {
     const product = await this.productsService.findOneOrThrow(id, user.restaurantId!);
     const image = this.imagesService.findImageOrThrow(product, imageId);
-    const absolutePath = await this.imagesService.absolutePath(image);
+    const { stream, sizeBytes } = await this.imagesService.read(image);
     res.setHeader("Content-Type", image.mimeType);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 
   @Post(":id/variants")

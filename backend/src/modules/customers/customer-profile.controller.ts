@@ -1,20 +1,12 @@
 import { BadRequestException, Body, Controller, Delete, Get, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags } from "@nestjs/swagger";
-import { diskStorage } from "multer";
+import { memoryStorage } from "multer";
 import type { Response } from "express";
-import * as crypto from "crypto";
-import * as fs from "fs";
-import * as path from "path";
 import { CurrentUser, AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { CustomerGuard } from "./guards/customer.guard";
 import { CustomerProfileService } from "./customer-profile.service";
-import {
-  CustomerProfileImagesService,
-  ALLOWED_IMAGE_MIME_TYPES,
-  MAX_IMAGE_SIZE_BYTES,
-  CUSTOMER_PHOTO_UPLOAD_ROOT,
-} from "./customer-profile-images.service";
+import { CustomerProfileImagesService, ALLOWED_IMAGE_MIME_TYPES, MAX_IMAGE_SIZE_BYTES } from "./customer-profile-images.service";
 import { UpdateCustomerProfileDto } from "./dto/update-customer-profile.dto";
 
 @ApiTags("Customer Self-Service - Profile")
@@ -39,15 +31,7 @@ export class CustomerProfileController {
   @Post("profile-photo")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (req, _file, cb) => {
-          const userId = (req.user as AuthenticatedUser).userId;
-          const dir = path.join(CUSTOMER_PHOTO_UPLOAD_ROOT, userId);
-          fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname)}`),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
@@ -77,8 +61,9 @@ export class CustomerProfileController {
   @Get("profile-photo/file")
   async downloadPhoto(@CurrentUser() user: AuthenticatedUser, @Res() res: Response) {
     const profile = await this.profileService.findOrCreateProfile(user.userId);
-    const absolutePath = await this.imagesService.absolutePath(profile);
+    const { stream, sizeBytes } = await this.imagesService.read(profile);
     res.setHeader("Content-Type", profile.profilePhotoMimeType!);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 }

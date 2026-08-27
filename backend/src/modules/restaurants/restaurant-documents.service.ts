@@ -1,15 +1,16 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import * as fs from "fs/promises";
+import * as crypto from "crypto";
 import * as path from "path";
+import type { Readable } from "stream";
+import { FILE_STORAGE_GATEWAY, FileStorageGateway } from "../../common/storage/file-storage.interface";
 import {
   RestaurantDocument,
   RestaurantDocumentStatus,
   RestaurantDocumentType,
 } from "./entities/restaurant-document.entity";
 
-export const DOCUMENT_UPLOAD_ROOT = path.resolve(process.cwd(), "uploads", "restaurant-documents");
 export const ALLOWED_DOCUMENT_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 export const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -17,18 +18,28 @@ export const MAX_DOCUMENT_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 export class RestaurantDocumentsService {
   constructor(
     @InjectRepository(RestaurantDocument) private readonly documentsRepository: Repository<RestaurantDocument>,
+    @Inject(FILE_STORAGE_GATEWAY) private readonly storage: FileStorageGateway,
   ) {}
 
-  async recordUpload(params: {
+  async upload(params: {
     restaurantId: string;
     type: RestaurantDocumentType;
-    filePath: string;
-    originalFileName: string;
-    mimeType: string;
-    fileSizeBytes: number;
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number };
     uploadedByUserId: string;
   }): Promise<RestaurantDocument> {
-    const document = this.documentsRepository.create({ ...params, status: RestaurantDocumentStatus.PENDING });
+    const key = `restaurant-documents/${params.restaurantId}/${crypto.randomUUID()}${path.extname(params.file.originalname)}`;
+    await this.storage.save(key, params.file.buffer, params.file.mimetype);
+
+    const document = this.documentsRepository.create({
+      restaurantId: params.restaurantId,
+      type: params.type,
+      filePath: key,
+      originalFileName: params.file.originalname,
+      mimeType: params.file.mimetype,
+      fileSizeBytes: params.file.size,
+      uploadedByUserId: params.uploadedByUserId,
+      status: RestaurantDocumentStatus.PENDING,
+    });
     return this.documentsRepository.save(document);
   }
 
@@ -60,9 +71,7 @@ export class RestaurantDocumentsService {
     return this.documentsRepository.save(document);
   }
 
-  async absolutePath(document: RestaurantDocument): Promise<string> {
-    const full = path.join(DOCUMENT_UPLOAD_ROOT, document.filePath);
-    await fs.access(full); // throws ENOENT if the file is missing on disk
-    return full;
+  async read(document: RestaurantDocument): Promise<{ stream: Readable; sizeBytes?: number }> {
+    return this.storage.read(document.filePath);
   }
 }

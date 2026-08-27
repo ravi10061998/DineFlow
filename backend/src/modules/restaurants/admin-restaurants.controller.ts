@@ -125,9 +125,10 @@ export class AdminRestaurantsController {
   @RequirePermissions("restaurants:read")
   async downloadDocument(@Param("docId", ParseUUIDPipe) docId: string, @Res() res: Response) {
     const document = await this.documentsService.findOneOrThrow(docId);
-    const absolutePath = await this.documentsService.absolutePath(document);
+    const { stream, sizeBytes } = await this.documentsService.read(document);
     res.setHeader("Content-Type", document.mimeType);
     res.setHeader("Content-Disposition", `inline; filename="${document.originalFileName}"`);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 }

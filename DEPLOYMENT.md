@@ -189,7 +189,37 @@ This is fundamentally different from the two above — there's no "deployed URL"
   and the backend infra for it already exists) becomes testable for real the moment a genuine
   EAS/native build exists, since that's a real app outside Expo Go's sandbox restriction.
 
-## 5. Post-deploy checklist
+## 5. File storage (Cloudflare R2) — optional but recommended for anything beyond a quick test
+
+Uploaded files (restaurant logos/documents, product images, customer profile photos) default to
+this service's own local disk (`common/storage/local-disk-storage.gateway.ts`) — zero setup, but
+wrong on any host with ephemeral disk. Render's free tier wipes it on every restart/redeploy,
+which is a real, confirmed failure mode: a restaurant logo uploaded during this project's own dev
+deployment vanished exactly this way after a routine redeploy. Setting the four `R2_*` env vars
+below switches every upload flow to Cloudflare R2 instead (`cloudflare-r2-storage.gateway.ts`) —
+chosen for a genuinely free tier (10GB storage, zero egress fees) that fits a free/dev deployment,
+not because the app has any R2-specific code (it's a plain S3-compatible client under the hood).
+
+1. Sign up at cloudflare.com (free, no card required for R2's free tier) → dashboard → **R2 Object
+   Storage** → **Create bucket**. Name it anything, e.g. `dineflow-uploads` — this is
+   `R2_BUCKET_NAME`.
+2. Still on the R2 dashboard, note your **Account ID** (shown in the right sidebar or the bucket's
+   own settings page) — this is `R2_ACCOUNT_ID`.
+3. **R2 → Manage API Tokens → Create API Token** → permission: **Object Read & Write**, scoped to
+   the bucket you just created. Save the generated **Access Key ID** (`R2_ACCESS_KEY_ID`) and
+   **Secret Access Key** (`R2_SECRET_ACCESS_KEY`) immediately — the secret is shown only once.
+4. Set all four (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) on
+   the backend service's environment (Render: dashboard → Environment; `render.yaml` already
+   defines these keys with `sync: false`, meaning Render leaves them blank until set manually).
+   Redeploy after setting them.
+5. Any file uploaded *before* this switch (while still on local disk) is not migrated
+   automatically — those references will keep 404ing until re-uploaded through the new storage.
+   New uploads made after the switch persist correctly across restarts.
+
+Leaving all four unset is a legitimate choice for a quick, short-lived test session — just know
+that any file uploaded won't survive the service's next restart.
+
+## 6. Post-deploy checklist
 
 1. `curl https://your-backend/api/v1/health` → `{"success":true,"data":{"status":"ok"},...}`
 2. Log in as the seeded admin, confirm `/api/v1/auth/me` returns a real profile

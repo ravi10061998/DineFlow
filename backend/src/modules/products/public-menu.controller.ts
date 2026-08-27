@@ -71,8 +71,9 @@ export class PublicMenuController {
   ) {
     const product = await this.productsService.findOneOrThrow(productId);
     const image = this.imagesService.findImageOrThrow(product, imageId);
-    const absolutePath = await this.imagesService.absolutePath(image);
+    const { stream, sizeBytes } = await this.imagesService.read(image);
     res.setHeader("Content-Type", image.mimeType);
-    res.sendFile(absolutePath);
+    if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
+    stream.pipe(res);
   }
 }

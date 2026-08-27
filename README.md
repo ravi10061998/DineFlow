@@ -516,3 +516,37 @@ became an actual deployment during this session, tracking the `dev` branch on fr
   down after 15 minutes idle (first request after that takes 30-50s), and its free Postgres
   expires after 30 days. Fine for testing the `dev` branch; not the target for a real production
   deploy, which is the next, separate, not-yet-started step.
+
+## Completed: File Storage Gateway — 2026-08-27 — real bug found on the live dev deployment
+
+A restaurant logo uploaded during this deployment's own testing vanished after a routine Render
+redeploy — not a fluke, a structural gap: every upload flow (restaurant logos/documents, product
+images, customer profile photos) wrote straight to local disk (`fs`/`path`, one folder per upload
+type), which is exactly wrong on any host with ephemeral disk, Render's free tier included.
+
+- New `common/storage/` abstraction: a `FileStorageGateway` interface (same DI-token-plus-interface
+  shape as `PaymentGateway`/`NotificationGateway`) with two implementations —
+  `LocalDiskStorageGateway` (the old behavior, still the zero-setup default) and
+  `CloudflareR2StorageGateway` (a real S3-compatible client against Cloudflare R2 — free tier,
+  10GB storage, zero egress). `StorageModule`'s factory picks R2 the moment `R2_ACCOUNT_ID` is set,
+  local disk otherwise — the **first** gateway in this app whose concrete implementation is chosen
+  at runtime rather than hardcoded to a single `Mock*` class.
+- All four upload services (`RestaurantLogoService`, `RestaurantDocumentsService`,
+  `ProductImagesService`, `CustomerProfileImagesService`) now go through the gateway instead of
+  raw `fs`; all four upload *controllers* switched from Multer's `diskStorage` to `memoryStorage`
+  (the actual destination is the gateway's decision, made after Multer finishes parsing, not
+  Multer's own); every serve route switched from `res.sendFile(path)` to streaming the gateway's
+  `read()` result — same URLs, same auth checks, zero frontend changes needed.
+- Free correctness improvement that fell out of this refactor: a missing file used to surface as a
+  raw, unhandled 500 (`fs.access` throwing past the old `absolutePath()` helpers) — `read()` now
+  throws `NotFoundException` uniformly, a proper 404.
+- 12 new unit tests: `LocalDiskStorageGateway` against a real scoped-and-cleaned-up filesystem
+  path, `CloudflareR2StorageGateway` against a mocked `S3Client` (verifies the right S3 commands
+  get built and R2's `NoSuchKey` maps to `NotFoundException`, no real bucket needed to run this
+  suite). Verified beyond unit tests too: booted the real app locally and did an actual
+  upload-then-download HTTP round trip through `LocalDiskStorageGateway`, confirming byte-for-byte
+  identical content — NestJS DI wiring errors are a runtime concern `nest build` alone can't catch.
+- **Flagged, not migrated**: any file already uploaded before this change (i.e., anything written
+  under the old local-disk layout) isn't moved to R2 automatically — those references keep
+  404ing/500ing until re-uploaded through the new code path. See `DEPLOYMENT.md` for the R2 bucket
+  + API token setup steps.

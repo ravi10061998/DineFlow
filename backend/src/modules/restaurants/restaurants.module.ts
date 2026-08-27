@@ -16,6 +16,7 @@ import { UsersModule } from "../users/users.module";
 import { RolesModule } from "../roles/roles.module";
 import { AuthModule } from "../auth/auth.module";
 import { ReviewsModule } from "../reviews/reviews.module";
+import { StorageModule } from "../../common/storage/storage.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ReviewsModule } from "../reviews/reviews.module";
     RolesModule,
     AuthModule,
     ReviewsModule,
+    StorageModule,
   ],
   controllers: [
     RestaurantRegistrationController,
