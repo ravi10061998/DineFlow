@@ -96,21 +96,12 @@ export function PaymentPanel({ order, onChanged }: { order: Order; onChanged: ()
       order_id: result.gatewayOrderId,
       prefill: { name: order.deliveryReceiverName, contact: order.deliveryReceiverPhone },
       theme: { color: "#ea580c" },
-      // Razorpay's checkout shows every method enabled on the account by default (UPI/card/
-      // netbanking/wallet/pay-later), in whatever order it picks -- this pins UPI and Card as the
-      // only two options and puts UPI first, rather than leaving it to that default ordering.
-      config: {
-        display: {
-          blocks: {
-            preferredMethods: {
-              name: "Pay via UPI or Card",
-              instruments: [{ method: "upi" }, { method: "card" }],
-            },
-          },
-          sequence: ["block.preferredMethods"],
-          preferences: { show_default_blocks: false },
-        },
-      },
+      // Deliberately no `config.display` override -- a custom block needs each instrument's
+      // `flows` (collect/intent/QR) spelled out correctly or Razorpay silently fails to render it,
+      // which is exactly what happened here (a UPI instrument with no flows left effectively only
+      // Card visible). Razorpay's own default checkout reliably shows every method enabled on the
+      // account -- UPI (GPay/PhonePe via intent on mobile, QR/collect on desktop), Card,
+      // netbanking, wallets -- with zero custom config to get wrong.
       handler: (response: unknown) => void handleVerify(result.paymentId, response as RazorpaySuccessResponse),
       modal: {
         // Not an error -- the customer can reopen the widget any time via "Pay ₹…" again, since
