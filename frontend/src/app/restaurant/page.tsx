@@ -87,7 +87,7 @@ export default function RestaurantDashboardPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
       <PortalHero
         title={`Welcome, ${user?.fullName ?? restaurant.ownerFullName}`}
         subtitle={
@@ -129,7 +129,7 @@ export default function RestaurantDashboardPage() {
 
       <div>
         <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500 uppercase">Quick actions</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {QUICK_ACTIONS.map((action) => (
             <Link
               key={action.href}
