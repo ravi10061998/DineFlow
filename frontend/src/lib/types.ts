@@ -45,6 +45,7 @@ export interface Restaurant {
   logoPath: string | null;
   logoOriginalName: string | null;
   logoMimeType: string | null;
+  isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
 }

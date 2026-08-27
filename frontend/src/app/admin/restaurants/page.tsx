@@ -47,6 +47,21 @@ export default function AdminRestaurantsPage() {
     }
   }
 
+  /** Distinct from `runAction` above -- this isn't a status-machine transition, just a display flag
+   * the home page's "Featured restaurants" carousel reads (see store.service.ts's getFeaturedRestaurants). */
+  async function toggleFeatured(r: Restaurant) {
+    setActionError(null);
+    setBusyId(r.id);
+    try {
+      await api.patch(`/admin/restaurants/${r.id}/featured`, { isFeatured: !r.isFeatured });
+      reload();
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const actionsFor = (status: RestaurantStatus): { label: string; action: Parameters<typeof runAction>[1] }[] => {
     switch (status) {
       case "PENDING":
@@ -120,6 +135,7 @@ export default function AdminRestaurantsPage() {
                   <td className="px-4 py-3 text-slate-600">{r.city}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={r.status} />
+                    {r.isFeatured && <span className="ml-1 text-xs font-medium text-amber-600">★ Featured</span>}
                     {r.status === "REJECTED" && r.rejectionReason && (
                       <p className="mt-1 max-w-xs text-xs text-slate-400">{r.rejectionReason}</p>
                     )}
@@ -149,6 +165,9 @@ export default function AdminRestaurantsPage() {
                           </Button>
                           <Button variant="secondary" onClick={() => setLedgerRestaurantId(r.id)}>
                             Ledger
+                          </Button>
+                          <Button variant="secondary" disabled={busyId === r.id} onClick={() => toggleFeatured(r)}>
+                            {r.isFeatured ? "Unfeature" : "Feature"}
                           </Button>
                         </>
                       )}

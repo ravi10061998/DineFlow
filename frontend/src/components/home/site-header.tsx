@@ -24,6 +24,12 @@ export function SiteHeader({ onLocationChange }: { onLocationChange: (location: 
         </div>
 
         <nav className="ml-auto flex items-center gap-2">
+          {/* The carousels below (Featured/Popular/Nearby/Trending) are all deliberately filtered
+           * (see store.service.ts) -- a brand-new restaurant with no orders yet won't appear in any
+           * of them. This is the one link that always lists every approved restaurant, unfiltered. */}
+          <Link href="/restaurants" className="hidden text-sm font-medium text-slate-700 hover:text-slate-900 sm:inline">
+            Restaurants
+          </Link>
           {!isLoading && user ? (
             <>
               {user.role === "CUSTOMER" && (
