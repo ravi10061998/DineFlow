@@ -5,9 +5,11 @@ import { RestaurantDocument } from "./entities/restaurant-document.entity";
 import { RestaurantBusinessHours } from "./entities/restaurant-business-hours.entity";
 import { RestaurantHoliday } from "./entities/restaurant-holiday.entity";
 import { RestaurantStatusHistory } from "./entities/restaurant-status-history.entity";
+import { RestaurantBankAccount } from "./entities/restaurant-bank-account.entity";
 import { RestaurantsService } from "./restaurants.service";
 import { RestaurantDocumentsService } from "./restaurant-documents.service";
 import { RestaurantLogoService } from "./restaurant-logo.service";
+import { RestaurantBankAccountService } from "./restaurant-bank-account.service";
 import { RestaurantRegistrationController } from "./restaurant-registration.controller";
 import { RestaurantSelfServiceController } from "./restaurant-self-service.controller";
 import { AdminRestaurantsController } from "./admin-restaurants.controller";
@@ -26,6 +28,7 @@ import { StorageModule } from "../../common/storage/storage.module";
       RestaurantBusinessHours,
       RestaurantHoliday,
       RestaurantStatusHistory,
+      RestaurantBankAccount,
     ]),
     UsersModule,
     RolesModule,
@@ -39,7 +42,9 @@ import { StorageModule } from "../../common/storage/storage.module";
     AdminRestaurantsController,
     PublicRestaurantsController,
   ],
-  providers: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService],
-  exports: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService],
+  providers: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService, RestaurantBankAccountService],
+  // RestaurantBankAccountService: so PayoutsModule's RazorpayXPayoutGateway can look up a
+  // restaurant's verified bank details without RestaurantsModule depending back on Payouts.
+  exports: [RestaurantsService, RestaurantDocumentsService, RestaurantLogoService, RestaurantBankAccountService],
 })
 export class RestaurantsModule {}

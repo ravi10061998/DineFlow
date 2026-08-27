@@ -132,7 +132,7 @@ throws and refuses to boot at all, before Nest even builds the module graph:
 |---|---|
 | `NODE_ENV` | `production` — this is what turns the safety check on at all |
 | `JWT_ACCESS_SECRET` | ≥32 chars, real random value (`openssl rand -hex 64`), must not contain `dev-only`/`change-me` |
-| `PAYMENT_GATEWAY_SECRET` | same requirement — used by the mock payment gateway's HMAC signing; swap `MockPaymentGateway` for a real Razorpay/Stripe adapter before this matters for real money |
+| `PAYMENT_GATEWAY_SECRET` | same requirement — used by the mock payment gateway's HMAC signing. Only matters if `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` (section 5 below) are left unset, i.e. the mock is still active in production |
 | `PAYMENT_WEBHOOK_SECRET` | same requirement — deliberately a *different* secret from the one above (see Module 13's own reasoning: a leak of one channel shouldn't compromise the other) |
 | `CORS_ORIGIN` | your real frontend's origin, e.g. `https://dineflow.yourdomain.com` — the app refuses to fall back to a permissive default in production |
 | `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` / `DB_DATABASE` | your managed Postgres connection details |
@@ -142,12 +142,14 @@ throws and refuses to boot at all, before Nest even builds the module graph:
 Everything else in `backend/.env.example` (`JWT_ACCESS_EXPIRES_IN`, `PAYMENT_GATEWAY_KEY_ID`) has
 a sane default or isn't security-sensitive.
 
-**Not yet true, flagged not hidden**: the payment/payout/push-notification gateways
-(`MockPaymentGateway`, `MockPayoutGateway`, `MockNotificationGateway`'s email/SMS methods — its
-push method is genuinely real, see Module 26/the push-tokens work) are mocks. Swapping in a real
-Razorpay/Stripe/SendGrid/Twilio adapter is a real, separate piece of work — the interfaces
-(`PaymentGateway`, `PayoutGateway`, `NotificationGateway`) were deliberately shaped so that's a
-new class, not a rewrite, but nobody should point this backend at real customer payments as-is.
+**Payments/Payouts are real now, gated on config — see section 5 below.** Setting
+`RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` switches `PaymentsModule`/`RefundsModule` from the mock to
+a real `RazorpayPaymentGateway`; adding `RAZORPAYX_ACCOUNT_NUMBER` on top of those switches
+`PayoutsModule` too. Leave all three unset and the mock keeps working exactly as before — nothing
+breaks by not setting them, this app just can't move real money until you do.
+**Still mock, flagged not hidden**: `MockNotificationGateway`'s email/SMS methods (its push method
+is genuinely real, see Module 26/the push-tokens work). A real SendGrid/Twilio adapter is separate,
+smaller work — the `NotificationGateway` interface is already shaped for it.
 
 ## 3. Frontend
 
@@ -189,7 +191,42 @@ This is fundamentally different from the two above — there's no "deployed URL"
   and the backend infra for it already exists) becomes testable for real the moment a genuine
   EAS/native build exists, since that's a real app outside Expo Go's sandbox restriction.
 
-## 5. File storage (Cloudflare R2) — optional but recommended for anything beyond a quick test
+## 5. Real payments (Razorpay) — who creates the account, how money actually moves
+
+**One account, created by the platform admin — never by individual restaurants.** Customers pay
+into that one account; restaurants never have their own Razorpay merchant account for this. See
+the money-flow explainer already in this README's "Payment Gateway" discussion for the full
+walkthrough of Ledger → Settlement → Payout; this section is just the account setup and env vars.
+
+1. Sign up at razorpay.com (free). **Test mode is on by default and needs no business
+   verification/KYC at all** — enough for everything in this checklist. Live mode (real money)
+   requires KYC later, separately, whenever you're ready for that.
+2. **Dashboard → Settings → API Keys → Generate Test Key** → gives you a Key Id (`rzp_test_...`)
+   and Key Secret (shown once — save it). Set both as `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` on
+   the backend. This alone switches customer checkout + refunds from the mock to real Razorpay
+   Test Mode — Razorpay's test cards/UPI IDs (documented on their site) simulate real payments
+   with no real money moving.
+3. **Dashboard → Settings → Webhooks → Add New Webhook** → URL:
+   `https://<your-backend>/api/v1/webhooks/razorpay` → Active events: at minimum
+   `payment.captured` and `payment.failed` → Razorpay generates a webhook secret for this specific
+   URL — set it as `RAZORPAY_WEBHOOK_SECRET`. This is what keeps a payment's status correct even
+   if the customer's browser closes before the checkout widget's own callback fires.
+4. **RazorpayX Payouts** (for real restaurant payouts) is a separate product needing its own setup
+   on Razorpay's side — **RazorpayX test mode is available immediately, same test API keys, no
+   extra approval needed to reach this checklist's testing goal.** Once you have a RazorpayX
+   virtual/current account number (from RazorpayX's own dashboard section), set it as
+   `RAZORPAYX_ACCOUNT_NUMBER`. This switches `PayoutsModule` from the mock to real
+   Contact→FundAccount→Payout calls the moment a weekly Settlement fires.
+5. **Restaurant bank details** are collected separately, per-restaurant, via
+   `/restaurant/me/bank-account` (self-service) and admin-verified via
+   `/admin/restaurants/:id/bank-account/verify` before any real payout will use them — a payout
+   attempted against an unverified or missing bank account is rejected with
+   `BANK_ACCOUNT_NOT_VERIFIED`, never silently sent nowhere.
+6. Leaving any of `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/`RAZORPAY_WEBHOOK_SECRET`/
+   `RAZORPAYX_ACCOUNT_NUMBER` unset keeps the corresponding mock active — this is a legitimate
+   choice for a quick test session, not a broken state.
+
+## 6. File storage (Cloudflare R2) — optional but recommended for anything beyond a quick test
 
 Uploaded files (restaurant logos/documents, product images, customer profile photos) default to
 this service's own local disk (`common/storage/local-disk-storage.gateway.ts`) — zero setup, but
@@ -219,7 +256,7 @@ not because the app has any R2-specific code (it's a plain S3-compatible client 
 Leaving all four unset is a legitimate choice for a quick, short-lived test session — just know
 that any file uploaded won't survive the service's next restart.
 
-## 6. Post-deploy checklist
+## 7. Post-deploy checklist
 
 1. `curl https://your-backend/api/v1/health` → `{"success":true,"data":{"status":"ok"},...}`
 2. Log in as the seeded admin, confirm `/api/v1/auth/me` returns a real profile

@@ -69,6 +69,19 @@ services:
         generateValue: true
       - key: PAYMENT_WEBHOOK_SECRET
         generateValue: true
+      # Real Razorpay -- unset here on purpose (sync: false), same reasoning as CORS_ORIGIN below:
+      # these are real account credentials only you have, not something to bake into version
+      # control even as a placeholder. Set all four in the dashboard once a Razorpay account
+      # exists to switch Payments/Refunds/Payouts from the mock to the real gateway -- see
+      # DEPLOYMENT.md for the exact setup steps. Leaving them unset keeps the mock active.
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAYX_ACCOUNT_NUMBER
+        sync: false
       # Not set here on purpose: seeding the first admin is a one-time manual command against
       # the real DB (needs bcrypt hashing, which is why it's a script and not a migration — see
       # `seed-admin.ts`), not something the running service does on its own from an env var.

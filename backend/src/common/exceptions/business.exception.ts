@@ -182,6 +182,21 @@ export const BlogErrors = {
 export const PayoutErrors = {
   notFailed: () =>
     new BusinessException("PAYOUT_NOT_FAILED", "Only a failed payout can be retried.", HttpStatus.CONFLICT),
+  bankAccountNotVerified: () =>
+    new BusinessException(
+      "BANK_ACCOUNT_NOT_VERIFIED",
+      "This restaurant has no admin-verified bank account on file — a payout can't be sent anywhere.",
+      HttpStatus.CONFLICT,
+    ),
+};
+
+export const BankAccountErrors = {
+  alreadyVerified: () =>
+    new BusinessException(
+      "BANK_ACCOUNT_ALREADY_VERIFIED",
+      "This bank account is already verified — only a pending submission can be verified or rejected.",
+      HttpStatus.CONFLICT,
+    ),
 };
 
 export const DeliveryAssignmentErrors = {

@@ -20,6 +20,7 @@ const QUICK_ACTIONS = [
   { href: "/restaurant/ledger", icon: "💰", label: "Ledger", description: "Track your running balance" },
   { href: "/restaurant/settlements", icon: "🧮", label: "Settlements", description: "See what's been locked in for payout" },
   { href: "/restaurant/payouts", icon: "🏦", label: "Payouts", description: "Track actual transfers to your account" },
+  { href: "/restaurant/bank-account", icon: "🏧", label: "Bank Account", description: "Set where your payouts are sent" },
   { href: "/restaurant/subscription", icon: "⭐", label: "Subscription", description: "Manage your plan" },
 ] as const;
 

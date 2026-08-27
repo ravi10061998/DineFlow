@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/restaurant/ledger", label: "Ledger" },
   { href: "/restaurant/settlements", label: "Settlements" },
   { href: "/restaurant/payouts", label: "Payouts" },
+  { href: "/restaurant/bank-account", label: "Bank Account" },
   { href: "/restaurant/subscription", label: "Subscription" },
 ];
 

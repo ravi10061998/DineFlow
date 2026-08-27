@@ -179,6 +179,60 @@ NestJS, organized per the spec's modular architecture (`src/modules/<name>/{enti
 - Every delivery is logged regardless of outcome — valid, invalid, duplicate, or processing-failed — an append-only audit trail in the same spirit as `restaurant_status_history`/`order_status_history`, just logging an *external* event hitting the system instead of an internal state change. Admin oversight reuses the `payments:read` permission (`GET /admin/webhooks`) rather than adding a new one — webhook deliveries are payment-domain infrastructure, not a separate resource.
 - Frontend: `/admin/webhooks` — a read-only delivery log (event type, gateway, outcome, processing error if any). Deliberately **no customer-facing UI** — webhooks are invisible infrastructure from a customer's perspective in a real system, so duplicating Module 12's "simulate payment" buttons with a second "simulate via webhook" control would just be confusing without adding anything a real user would ever see.
 
+## Completed: Real Razorpay Payment Gateway + Restaurant Bank Accounts — 2026-08-27
+
+Modules 12-15's own mock-gateway architecture paid off exactly as designed: going real needed one
+new class per gateway, zero changes to `PaymentsService`/`RefundsService`/`PayoutsService`.
+
+- **`RazorpayPaymentGateway`** (`payments/gateways/`): real `orders.create`/`payments.refund` calls
+  via the official `razorpay` SDK. `verifySignature` uses the SDK's own
+  `validatePaymentVerification` helper rather than a hand-rolled HMAC — the exact same
+  `HMAC-SHA256(order_id|payment_id, key_secret)` scheme `MockPaymentGateway.sign()` already
+  simulated, now verified by Razorpay's own code. `payments.module.ts` picks it via a factory —
+  real gateway the moment `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are both set, the mock otherwise
+  — the first payment gateway in this app actually chosen at runtime rather than hardcoded to Mock
+  (`StorageModule`'s R2-vs-local-disk factory from Module 34 is the only prior precedent).
+- **A second, real webhook path** (`RazorpayWebhooksController`/`RazorpayWebhooksService`) added
+  *alongside* Module 13's existing mock webhook — that one keeps working completely unchanged
+  (still exercised by `mock-send`/its own tests). The new path parses Razorpay's actual envelope
+  (`payload.payment.entity.{id,order_id}`) and verifies `X-Razorpay-Signature` via
+  `Razorpay.validateWebhookSignature` against its own `RAZORPAY_WEBHOOK_SECRET` (deliberately
+  separate from `PAYMENT_WEBHOOK_SECRET`, which only the mock uses) — both paths converge on the
+  same gateway-agnostic `PaymentsService.applyWebhookOutcome()`, and both log to the same
+  `webhook_events` table (`gateway: "RAZORPAY"` vs `"MOCK"`), so the existing `/admin/webhooks`
+  page shows real deliveries with zero frontend changes.
+- **Frontend checkout** (`PaymentPanel`): loads Razorpay's real Checkout.js widget and opens it
+  with the gateway order id from `/payment/initiate`, the moment the returned `gatewayKeyId`
+  starts with `rzp_` (the mock's key id never does — one existing field, no new API surface, tells
+  the frontend which gateway is live). The widget's success callback calls the *exact same*
+  `/payment/verify` endpoint a real gateway redirect always hit — the mock's "Simulate
+  successful/failed payment" buttons still render unchanged whenever the mock is active, so local
+  dev needs no Razorpay account at all.
+- **New: `RestaurantBankAccount`** (`restaurants/`, migration `AddRestaurantBankAccounts`) — one
+  per restaurant, admin-verified (`PENDING`/`VERIFIED`/`REJECTED`, same shape and same
+  `restaurants:approve` permission as `RestaurantDocument`'s review flow) before any real payout
+  will use it. `accountNumber` is real, sensitive data: every API response masks it to
+  `toSafeResponse()`'s last-4-digits form — the full value only ever reaches
+  `RazorpayXPayoutGateway` internally, never a frontend response. Rebinding an account always
+  resets it to `PENDING` and clears any RazorpayX linkage, since a fund account is tied to the
+  exact number/IFSC it was created for. Frontend: `/restaurant/bank-account` (self-service
+  add/replace) and an admin `BankAccountModal` (view + verify/reject) on `/admin/restaurants`.
+- **`RazorpayXPayoutGateway`** (`payouts/gateways/`): RazorpayX Payouts is a genuinely different
+  product from regular Razorpay Payments (Contacts → Fund Accounts → Payouts, keyed by
+  `contact_id`, not the Customers-product `fund_account` the `razorpay` SDK actually types) — none
+  of it is in this SDK version's typed surface, so every call goes through the SDK's own untyped
+  `api.post` escape hatch, same authenticated client, no separate HTTP client needed. A payout
+  against a restaurant with no `VERIFIED` bank account is rejected with `BANK_ACCOUNT_NOT_VERIFIED`
+  before any Razorpay call is attempted, never silently sent nowhere. Contact/Fund Account are
+  created once per restaurant and reused for every later payout. `payouts.module.ts`'s factory
+  needs all three of `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/`RAZORPAYX_ACCOUNT_NUMBER` (its own
+  originating account number, beyond what Payments needs) before switching off the mock.
+- 35 new unit tests across the two real gateways, the webhook service, and the bank account
+  service (SDK calls mocked — no real Razorpay account needed to run the suite); full unit + e2e
+  suites re-run clean throughout (mock gateway path, still the default with no `RAZORPAY_*` env
+  vars set, completely unaffected). See `DEPLOYMENT.md` section 5 for the actual account setup —
+  test mode needs no KYC/business verification at all, real money only after switching to live keys.
+
 **Module 14 — Refunds** (`src/modules/refunds`)
 - Found a real, concrete gap before designing this: **cancelling a `PAID` order never triggered any money back to the customer** — `OrdersService`'s cancellation methods never looked at `paymentStatus` at all. A restaurant could cancel an order the customer already paid for and the money would just stay taken. This module closes exactly that hole.
 - **Event-driven, not a direct dependency** — Orders gained a new `order.status_changed` event (emitted only after a transition commits), and `RefundsService` listens for it, acting only when `toStatus === CANCELLED` and the order's `paymentStatus === PAID`. This is the *exact same decoupling shape* as Module 4's restaurant-approval-starts-a-trial listener — Orders stays completely unaware Refunds exists.

@@ -5,9 +5,11 @@ import { RequirePermissions } from "../../common/decorators/require-permissions.
 import { CurrentUser, AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { RestaurantsService } from "./restaurants.service";
 import { RestaurantDocumentsService } from "./restaurant-documents.service";
+import { RestaurantBankAccountService } from "./restaurant-bank-account.service";
 import { RestaurantStatus } from "./entities/restaurant.entity";
 import { StatusChangeReasonDto } from "./dto/status-change-reason.dto";
 import { RejectDocumentDto } from "./dto/reject-document.dto";
+import { RejectBankAccountDto } from "./dto/reject-bank-account.dto";
 import { SetFeaturedDto } from "./dto/set-featured.dto";
 
 @ApiTags("Admin - Restaurants")
@@ -16,6 +18,7 @@ export class AdminRestaurantsController {
   constructor(
     private readonly restaurantsService: RestaurantsService,
     private readonly documentsService: RestaurantDocumentsService,
+    private readonly bankAccountService: RestaurantBankAccountService,
   ) {}
 
   @Get()
@@ -130,5 +133,26 @@ export class AdminRestaurantsController {
     res.setHeader("Content-Disposition", `inline; filename="${document.originalFileName}"`);
     if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
     stream.pipe(res);
+  }
+
+  @Get(":id/bank-account")
+  @RequirePermissions("restaurants:read")
+  async getBankAccount(@Param("id", ParseUUIDPipe) id: string) {
+    const account = await this.bankAccountService.findByRestaurantId(id);
+    return { message: "Bank account fetched", data: account ? this.bankAccountService.toSafeResponse(account) : null };
+  }
+
+  @Patch(":id/bank-account/verify")
+  @RequirePermissions("restaurants:approve")
+  async verifyBankAccount(@Param("id", ParseUUIDPipe) id: string) {
+    const account = await this.bankAccountService.verify(id);
+    return { message: "Bank account verified", data: this.bankAccountService.toSafeResponse(account) };
+  }
+
+  @Patch(":id/bank-account/reject")
+  @RequirePermissions("restaurants:approve")
+  async rejectBankAccount(@Param("id", ParseUUIDPipe) id: string, @Body() dto: RejectBankAccountDto) {
+    const account = await this.bankAccountService.reject(id, dto.reason);
+    return { message: "Bank account rejected", data: this.bankAccountService.toSafeResponse(account) };
   }
 }

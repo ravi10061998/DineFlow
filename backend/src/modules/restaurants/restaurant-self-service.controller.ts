@@ -23,10 +23,12 @@ import { RestaurantMemberGuard } from "./guards/restaurant-member.guard";
 import { RestaurantsService } from "./restaurants.service";
 import { ALLOWED_DOCUMENT_MIME_TYPES, MAX_DOCUMENT_SIZE_BYTES, RestaurantDocumentsService } from "./restaurant-documents.service";
 import { ALLOWED_LOGO_MIME_TYPES, MAX_LOGO_SIZE_BYTES, RestaurantLogoService } from "./restaurant-logo.service";
+import { RestaurantBankAccountService } from "./restaurant-bank-account.service";
 import { UpdateRestaurantDto } from "./dto/update-restaurant.dto";
 import { SetBusinessHoursDto } from "./dto/set-business-hours.dto";
 import { CreateHolidayDto } from "./dto/create-holiday.dto";
 import { UploadDocumentDto } from "./dto/upload-document.dto";
+import { SetBankAccountDto } from "./dto/set-bank-account.dto";
 
 @ApiTags("Restaurant Self-Service")
 @UseGuards(RestaurantMemberGuard)
@@ -36,6 +38,7 @@ export class RestaurantSelfServiceController {
     private readonly restaurantsService: RestaurantsService,
     private readonly documentsService: RestaurantDocumentsService,
     private readonly logoService: RestaurantLogoService,
+    private readonly bankAccountService: RestaurantBankAccountService,
   ) {}
 
   @Get()
@@ -162,5 +165,19 @@ export class RestaurantSelfServiceController {
     res.setHeader("Content-Disposition", `inline; filename="${document.originalFileName}"`);
     if (sizeBytes !== undefined) res.setHeader("Content-Length", String(sizeBytes));
     stream.pipe(res);
+  }
+
+  /** Null (not 404) when nothing's been submitted yet — this is a normal, expected state for a
+   * brand-new restaurant, not an error. */
+  @Get("bank-account")
+  async getBankAccount(@CurrentUser() user: AuthenticatedUser) {
+    const account = await this.bankAccountService.findByRestaurantId(user.restaurantId!);
+    return { message: "Bank account fetched", data: account ? this.bankAccountService.toSafeResponse(account) : null };
+  }
+
+  @Put("bank-account")
+  async setBankAccount(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetBankAccountDto) {
+    const account = await this.bankAccountService.setBankAccount(user.restaurantId!, dto);
+    return { message: "Bank account saved — pending admin verification", data: this.bankAccountService.toSafeResponse(account) };
   }
 }
