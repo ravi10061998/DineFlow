@@ -57,7 +57,9 @@ export default function RegisterRestaurantPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-50 px-4 py-10">
-      <Logo />
+      <Link href="/">
+        <Logo />
+      </Link>
       <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-4 rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Register your restaurant</h1>

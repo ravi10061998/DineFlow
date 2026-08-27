@@ -42,7 +42,9 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-slate-50 px-4">
-      <Logo />
+      <Link href="/">
+        <Logo />
+      </Link>
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Create your account</h1>
