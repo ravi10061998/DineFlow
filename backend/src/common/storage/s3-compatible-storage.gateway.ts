@@ -5,28 +5,33 @@ import type { Readable } from "stream";
 import type { FileStorageGateway } from "./file-storage.interface";
 
 /**
- * Cloudflare R2 is S3-API-compatible (same request shapes as AWS S3, different endpoint), so the
- * regular `@aws-sdk/client-s3` client works against it unmodified -- no R2-specific SDK needed.
- * Chosen over AWS S3 itself for its genuinely free tier (10GB storage, zero egress fees) that fits
- * this app's own free/dev deployment story, not because of any code-level dependency on R2.
+ * Works against ANY S3-API-compatible object store -- Cloudflare R2, Backblaze B2, MinIO, or AWS
+ * S3 itself -- since they all speak the same request shapes, just at different endpoints/regions.
+ * `S3_ENDPOINT` is the one thing that actually varies per provider, so it's the one thing this
+ * class asks for explicitly rather than deriving a provider-specific URL from something like an
+ * account id (an earlier version of this file was Cloudflare-R2-only for exactly that reason, and
+ * had to be generalized the first time a genuinely no-card-required alternative -- Backblaze B2 --
+ * came up as the actual choice for this app's free/dev deployment).
  *
- * `region: "auto"` and the account-scoped endpoint below are R2's own documented S3-compatibility
- * requirements -- AWS S3 itself would need a real region instead.
+ * `forcePathStyle: true` is set unconditionally: path-style addressing
+ * (`endpoint/bucket/key`) works reliably across every provider this class targets, unlike
+ * virtual-hosted-style (`bucket.endpoint/key`), which not every S3-compatible provider supports
+ * the same way AWS S3 itself does.
  */
 @Injectable()
-export class CloudflareR2StorageGateway implements FileStorageGateway {
+export class S3CompatibleStorageGateway implements FileStorageGateway {
   private readonly client: S3Client;
   private readonly bucket: string;
 
   constructor(configService: ConfigService) {
-    const accountId = configService.getOrThrow<string>("R2_ACCOUNT_ID");
-    this.bucket = configService.getOrThrow<string>("R2_BUCKET_NAME");
+    this.bucket = configService.getOrThrow<string>("S3_BUCKET_NAME");
     this.client = new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      region: configService.get<string>("S3_REGION", "auto"),
+      endpoint: configService.getOrThrow<string>("S3_ENDPOINT"),
+      forcePathStyle: true,
       credentials: {
-        accessKeyId: configService.getOrThrow<string>("R2_ACCESS_KEY_ID"),
-        secretAccessKey: configService.getOrThrow<string>("R2_SECRET_ACCESS_KEY"),
+        accessKeyId: configService.getOrThrow<string>("S3_ACCESS_KEY_ID"),
+        secretAccessKey: configService.getOrThrow<string>("S3_SECRET_ACCESS_KEY"),
       },
     });
   }

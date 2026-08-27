@@ -2,32 +2,48 @@ import { NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Readable } from "stream";
 import { NoSuchKey, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { CloudflareR2StorageGateway } from "./cloudflare-r2-storage.gateway";
+import { S3CompatibleStorageGateway } from "./s3-compatible-storage.gateway";
 
-/** No real network call, no real R2 account needed -- S3Client.send is mocked, so this verifies
- * this gateway builds the right S3-compatible commands and maps R2's own errors correctly,
- * independent of whether an actual bucket is reachable. */
+/** No real network call, no real bucket needed -- S3Client.send is mocked, so this verifies this
+ * gateway builds the right S3-compatible commands and maps errors correctly, independent of
+ * whether an actual provider (R2, B2, MinIO, ...) is reachable. */
 jest.mock("@aws-sdk/client-s3", () => {
   const actual = jest.requireActual("@aws-sdk/client-s3");
   return { ...actual, S3Client: jest.fn() };
 });
 
-describe("CloudflareR2StorageGateway", () => {
+describe("S3CompatibleStorageGateway", () => {
   let send: jest.Mock;
-  let gateway: CloudflareR2StorageGateway;
+  let gateway: S3CompatibleStorageGateway;
+  let clientCtorArgs: Record<string, unknown>;
 
   beforeEach(() => {
     send = jest.fn();
-    (require("@aws-sdk/client-s3").S3Client as jest.Mock).mockImplementation(() => ({ send }));
+    const S3ClientMock = require("@aws-sdk/client-s3").S3Client as jest.Mock;
+    S3ClientMock.mockImplementation((args: Record<string, unknown>) => {
+      clientCtorArgs = args;
+      return { send };
+    });
 
     const configValues: Record<string, string> = {
-      R2_ACCOUNT_ID: "acct123",
-      R2_BUCKET_NAME: "dineflow-uploads",
-      R2_ACCESS_KEY_ID: "key",
-      R2_SECRET_ACCESS_KEY: "secret",
+      S3_ENDPOINT: "https://s3.us-west-004.backblazeb2.com",
+      S3_BUCKET_NAME: "dineflow-uploads",
+      S3_ACCESS_KEY_ID: "key",
+      S3_SECRET_ACCESS_KEY: "secret",
     };
-    const configService = { getOrThrow: (k: string) => configValues[k] } as unknown as ConfigService;
-    gateway = new CloudflareR2StorageGateway(configService);
+    const configService = {
+      getOrThrow: (k: string) => configValues[k],
+      get: (k: string, fallback?: string) => configValues[k] ?? fallback,
+    } as unknown as ConfigService;
+    gateway = new S3CompatibleStorageGateway(configService);
+  });
+
+  it("constructs the S3 client with the configured endpoint, path-style addressing, and region defaulting to auto", () => {
+    expect(clientCtorArgs).toMatchObject({
+      endpoint: "https://s3.us-west-004.backblazeb2.com",
+      region: "auto",
+      forcePathStyle: true,
+    });
   });
 
   it("save sends a PutObjectCommand with the bucket, key, body, and content type", async () => {
@@ -57,7 +73,7 @@ describe("CloudflareR2StorageGateway", () => {
     expect(result.sizeBytes).toBe(2);
   });
 
-  it("read translates R2's NoSuchKey into NotFoundException", async () => {
+  it("read translates the provider's NoSuchKey into NotFoundException", async () => {
     send.mockRejectedValueOnce(new NoSuchKey({ message: "not found", $metadata: {} }));
     await expect(gateway.read("missing/key.jpg")).rejects.toThrow(NotFoundException);
   });

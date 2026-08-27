@@ -581,8 +581,12 @@ type), which is exactly wrong on any host with ephemeral disk, Render's free tie
 - New `common/storage/` abstraction: a `FileStorageGateway` interface (same DI-token-plus-interface
   shape as `PaymentGateway`/`NotificationGateway`) with two implementations —
   `LocalDiskStorageGateway` (the old behavior, still the zero-setup default) and
-  `CloudflareR2StorageGateway` (a real S3-compatible client against Cloudflare R2 — free tier,
-  10GB storage, zero egress). `StorageModule`'s factory picks R2 the moment `R2_ACCOUNT_ID` is set,
+  `S3CompatibleStorageGateway` (a real client against any S3-API-compatible object store — the
+  actual dev deployment uses Backblaze B2, chosen specifically because its free tier needs no card
+  on file at all, unlike Cloudflare R2's, which still requires one even within the free limits;
+  this class started out Cloudflare-R2-only, keyed off an account id, and was generalized to a
+  configurable `S3_ENDPOINT` the moment B2 became the actual choice — see the storage-provider
+  switch note further down). `StorageModule`'s factory picks it the moment `S3_ENDPOINT` is set,
   local disk otherwise — the **first** gateway in this app whose concrete implementation is chosen
   at runtime rather than hardcoded to a single `Mock*` class.
 - All four upload services (`RestaurantLogoService`, `RestaurantDocumentsService`,
@@ -595,12 +599,25 @@ type), which is exactly wrong on any host with ephemeral disk, Render's free tie
   raw, unhandled 500 (`fs.access` throwing past the old `absolutePath()` helpers) — `read()` now
   throws `NotFoundException` uniformly, a proper 404.
 - 12 new unit tests: `LocalDiskStorageGateway` against a real scoped-and-cleaned-up filesystem
-  path, `CloudflareR2StorageGateway` against a mocked `S3Client` (verifies the right S3 commands
-  get built and R2's `NoSuchKey` maps to `NotFoundException`, no real bucket needed to run this
-  suite). Verified beyond unit tests too: booted the real app locally and did an actual
+  path, `S3CompatibleStorageGateway` against a mocked `S3Client` (verifies the right S3 commands
+  get built and the provider's `NoSuchKey` maps to `NotFoundException`, no real bucket needed to
+  run this suite). Verified beyond unit tests too: booted the real app locally and did an actual
   upload-then-download HTTP round trip through `LocalDiskStorageGateway`, confirming byte-for-byte
   identical content — NestJS DI wiring errors are a runtime concern `nest build` alone can't catch.
 - **Flagged, not migrated**: any file already uploaded before this change (i.e., anything written
-  under the old local-disk layout) isn't moved to R2 automatically — those references keep
-  404ing/500ing until re-uploaded through the new code path. See `DEPLOYMENT.md` for the R2 bucket
-  + API token setup steps.
+  under the old local-disk layout) isn't moved to the new object store automatically — those
+  references keep 404ing until re-uploaded through the new code path. See `DEPLOYMENT.md` for the
+  bucket + key setup steps.
+
+**Storage-provider switch, same day**: got as far as Cloudflare's own R2 enrollment screen before
+finding out it asks for a payment method on file to activate R2 at all, even purely within the free
+tier — confirmed unacceptable (a card was explicitly something to avoid for this dev deployment).
+Verified Backblaze B2's free tier needs no card via a live check, not assumption, then generalized
+`CloudflareR2StorageGateway` into the provider-agnostic `S3CompatibleStorageGateway` described
+above rather than writing a second, near-duplicate gateway class — the two providers differ only in
+which endpoint URL you point the same S3-compatible client at. `R2_ACCOUNT_ID`/`R2_BUCKET_NAME`/
+`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` became `S3_ENDPOINT`/`S3_REGION`/`S3_BUCKET_NAME`/
+`S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY` everywhere (code, `render.yaml`, `.env.example`,
+`DEPLOYMENT.md`) — R2 itself still works through the exact same five env vars for anyone who'd
+rather use it (e.g. already has a card on file with Cloudflare), just isn't the one this
+deployment's own bucket actually uses.

@@ -226,35 +226,47 @@ walkthrough of Ledger → Settlement → Payout; this section is just the accoun
    `RAZORPAYX_ACCOUNT_NUMBER` unset keeps the corresponding mock active — this is a legitimate
    choice for a quick test session, not a broken state.
 
-## 6. File storage (Cloudflare R2) — optional but recommended for anything beyond a quick test
+## 6. File storage (Backblaze B2) — optional but recommended for anything beyond a quick test
 
 Uploaded files (restaurant logos/documents, product images, customer profile photos) default to
 this service's own local disk (`common/storage/local-disk-storage.gateway.ts`) — zero setup, but
 wrong on any host with ephemeral disk. Render's free tier wipes it on every restart/redeploy,
 which is a real, confirmed failure mode: a restaurant logo uploaded during this project's own dev
-deployment vanished exactly this way after a routine redeploy. Setting the four `R2_*` env vars
-below switches every upload flow to Cloudflare R2 instead (`cloudflare-r2-storage.gateway.ts`) —
-chosen for a genuinely free tier (10GB storage, zero egress fees) that fits a free/dev deployment,
-not because the app has any R2-specific code (it's a plain S3-compatible client under the hood).
+deployment vanished exactly this way after a routine redeploy. Setting the five `S3_*` env vars
+below switches every upload flow to a real S3-compatible object store instead
+(`s3-compatible-storage.gateway.ts` — works with any provider that speaks the S3 API, not just the
+one below; only the endpoint URL differs between them).
 
-1. Sign up at cloudflare.com (free, no card required for R2's free tier) → dashboard → **R2 Object
-   Storage** → **Create bucket**. Name it anything, e.g. `dineflow-uploads` — this is
-   `R2_BUCKET_NAME`.
-2. Still on the R2 dashboard, note your **Account ID** (shown in the right sidebar or the bucket's
-   own settings page) — this is `R2_ACCOUNT_ID`.
-3. **R2 → Manage API Tokens → Create API Token** → permission: **Object Read & Write**, scoped to
-   the bucket you just created. Save the generated **Access Key ID** (`R2_ACCESS_KEY_ID`) and
-   **Secret Access Key** (`R2_SECRET_ACCESS_KEY`) immediately — the secret is shown only once.
-4. Set all four (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) on
-   the backend service's environment (Render: dashboard → Environment; `render.yaml` already
-   defines these keys with `sync: false`, meaning Render leaves them blank until set manually).
-   Redeploy after setting them.
-5. Any file uploaded *before* this switch (while still on local disk) is not migrated
+**Backblaze B2** is what this app's own dev deployment actually uses, chosen specifically because
+its free tier (10GB storage, 1GB/day egress) needs **no card on file at all** — unlike Cloudflare
+R2, whose free tier still requires adding a payment method up front even though you won't be
+charged within the free limits. If you'd rather use R2 anyway (e.g. you already have a Cloudflare
+account with a card on file), it works identically through the same five env vars — just get the
+endpoint/keys from R2's dashboard instead and skip to step 4.
+
+1. Sign up at backblaze.com (free, no card required) → **B2 Cloud Storage → Buckets → Create a
+   Bucket**. Name it anything, e.g. `dineflow-uploads` — this is `S3_BUCKET_NAME`. After creating
+   it, copy the **Endpoint** field shown on the bucket's page (looks like
+   `https://s3.us-west-004.backblazeb2.com`) — that whole URL is `S3_ENDPOINT`, and the
+   `us-west-004`-shaped part alone is `S3_REGION`.
+2. **B2 Cloud Storage → Application Keys → Add a New Application Key** → scope it to the bucket
+   you just created, access type **Read and Write**. If you hit permission errors later, recreate
+   the key with **"Allow List All Bucket Names"** also checked — some S3 SDKs' internal calls need
+   it even when your own code never lists buckets. Click **Create New Key** and save the **keyID**
+   (`S3_ACCESS_KEY_ID`) and **applicationKey** (`S3_SECRET_ACCESS_KEY`) immediately — the
+   `applicationKey` is shown only once.
+3. Set all five (`S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET_NAME`, `S3_ACCESS_KEY_ID`,
+   `S3_SECRET_ACCESS_KEY`) on the backend service's environment (Render: dashboard → Environment;
+   `render.yaml` already defines these keys with `sync: false`, meaning Render leaves them blank
+   until set manually). Redeploy after setting them.
+4. Any file uploaded *before* this switch (while still on local disk) is not migrated
    automatically — those references will keep 404ing until re-uploaded through the new storage.
    New uploads made after the switch persist correctly across restarts.
 
-Leaving all four unset is a legitimate choice for a quick, short-lived test session — just know
+Leaving all five unset is a legitimate choice for a quick, short-lived test session — just know
 that any file uploaded won't survive the service's next restart.
+
+Sources: [Backblaze B2 sign-up (no card required)](https://www.backblaze.com/sign-up/b2-cloud-storage-backup-archive), [Getting Started with the S3 Compatible API](https://help.backblaze.com/hc/en-us/articles/360047425453-Getting-Started-with-the-S3-Compatible-API), [How to Create and Manage App Keys](https://www.backblaze.com/docs/cloud-storage-create-and-manage-app-keys)
 
 ## 7. Post-deploy checklist
 

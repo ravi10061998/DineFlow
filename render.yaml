@@ -93,16 +93,19 @@ services:
       # for the exact order this gets filled in.
       - key: CORS_ORIGIN
         sync: false
-      # Without these four, uploaded files (restaurant logos/documents, product images, customer
+      # Without these five, uploaded files (restaurant logos/documents, product images, customer
       # profile photos) fall back to this service's own local disk (common/storage's
       # LocalDiskStorageGateway) — which Render's free tier wipes on every restart/redeploy. Set
-      # all four to switch to Cloudflare R2 (a real, persistent, genuinely-free-tier object
-      # store) instead — see DEPLOYMENT.md for how to create the bucket and API token.
-      - key: R2_ACCOUNT_ID
+      # all five to switch to a real S3-compatible object store instead — this app's own dev
+      # deployment uses Backblaze B2 specifically (its free tier needs no card on file at all,
+      # unlike Cloudflare R2) — see DEPLOYMENT.md for the exact bucket + key setup steps.
+      - key: S3_ENDPOINT
         sync: false
-      - key: R2_BUCKET_NAME
+      - key: S3_REGION
         sync: false
-      - key: R2_ACCESS_KEY_ID
+      - key: S3_BUCKET_NAME
         sync: false
-      - key: R2_SECRET_ACCESS_KEY
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
         sync: false
