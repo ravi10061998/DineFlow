@@ -1,6 +1,5 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { DataSource, Repository } from "typeorm";
 import * as crypto from "crypto";
@@ -23,7 +22,6 @@ export class PaymentsService {
     // this dependency) entirely, so it's kept separate from the interface-typed `gateway` above.
     private readonly mockGateway: MockPaymentGateway,
     private readonly dataSource: DataSource,
-    private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -70,9 +68,10 @@ export class PaymentsService {
     });
     const saved = await this.paymentsRepository.save(payment);
 
-    // A real client-side checkout widget (Razorpay Checkout, Stripe Elements) needs a public key —
-    // the mock gateway's is just a placeholder from config, never a real secret.
-    return { payment: saved, gatewayKeyId: this.gatewayKeyId() };
+    // The client-side checkout widget needs a public key — `clientKey` comes from whichever
+    // gateway `this.gateway` actually is, so this can never disagree with which gateway just
+    // created the order two lines above.
+    return { payment: saved, gatewayKeyId: this.gateway.clientKey };
   }
 
   async verify(orderId: string, customerId: string, dto: VerifyPaymentDto): Promise<Payment> {
@@ -164,9 +163,5 @@ export class PaymentsService {
     const gatewayPaymentId = `mock_pay_${crypto.randomBytes(6).toString("hex")}`;
     const signature = succeed ? this.mockGateway.sign(payment.gatewayOrderId, gatewayPaymentId) : "deliberately-invalid-signature";
     return this.verify(orderId, customerId, { paymentId, gatewayPaymentId, signature });
-  }
-
-  private gatewayKeyId(): string {
-    return this.configService.get<string>("PAYMENT_GATEWAY_KEY_ID", "mock_key_id_dev");
   }
 }

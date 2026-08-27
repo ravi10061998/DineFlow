@@ -32,6 +32,10 @@ describe("RazorpayPaymentGateway", () => {
     expect(gateway.name).toBe("RAZORPAY");
   });
 
+  it("exposes the real key id as clientKey -- PaymentsService.initiate() hands this straight to the frontend", () => {
+    expect(gateway.clientKey).toBe("rzp_test_key");
+  });
+
   it("createOrder converts rupees to paise and returns the gateway order id", async () => {
     ordersCreate.mockResolvedValueOnce({ id: "order_abc123" });
 

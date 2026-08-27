@@ -12,8 +12,11 @@ import { GatewayOrder, GatewayRefund, PaymentGateway } from "./payment-gateway.i
 @Injectable()
 export class MockPaymentGateway implements PaymentGateway {
   readonly name = "MOCK";
+  readonly clientKey: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    this.clientKey = configService.get<string>("PAYMENT_GATEWAY_KEY_ID", "mock_key_id_dev");
+  }
 
   async createOrder(amount: number, currency: string, receipt: string): Promise<GatewayOrder> {
     void receipt; // a real gateway would echo this back on its dashboard; unused by the mock

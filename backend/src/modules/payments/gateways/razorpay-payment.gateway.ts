@@ -15,13 +15,14 @@ import { GatewayOrder, GatewayRefund, PaymentGateway } from "./payment-gateway.i
 @Injectable()
 export class RazorpayPaymentGateway implements PaymentGateway {
   readonly name = "RAZORPAY";
+  readonly clientKey: string;
   private readonly client: Razorpay;
   private readonly keySecret: string;
 
   constructor(configService: ConfigService) {
-    const keyId = configService.getOrThrow<string>("RAZORPAY_KEY_ID");
+    this.clientKey = configService.getOrThrow<string>("RAZORPAY_KEY_ID");
     this.keySecret = configService.getOrThrow<string>("RAZORPAY_KEY_SECRET");
-    this.client = new Razorpay({ key_id: keyId, key_secret: this.keySecret });
+    this.client = new Razorpay({ key_id: this.clientKey, key_secret: this.keySecret });
   }
 
   async createOrder(amount: number, currency: string, receipt: string): Promise<GatewayOrder> {

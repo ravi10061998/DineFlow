@@ -1,7 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
-import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { NotFoundException } from "@nestjs/common";
 import { PaymentsService } from "./payments.service";
@@ -15,7 +14,7 @@ describe("PaymentsService", () => {
   let service: PaymentsService;
   let paymentsRepo: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock; find: jest.Mock };
   let ordersService: { findOneOrThrow: jest.Mock };
-  let gateway: { name: string; createOrder: jest.Mock; verifySignature: jest.Mock };
+  let gateway: { name: string; clientKey: string; createOrder: jest.Mock; verifySignature: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
 
@@ -31,6 +30,7 @@ describe("PaymentsService", () => {
     ordersService = { findOneOrThrow: jest.fn().mockResolvedValue(order) };
     gateway = {
       name: "MOCK",
+      clientKey: "mock_key_id_dev",
       createOrder: jest.fn().mockResolvedValue({ gatewayOrderId: "mock_order_1", amount: 340, currency: "INR" }),
       verifySignature: jest.fn().mockReturnValue(true),
     };
@@ -45,7 +45,6 @@ describe("PaymentsService", () => {
         { provide: PAYMENT_GATEWAY, useValue: gateway },
         { provide: MockPaymentGateway, useValue: { sign: jest.fn().mockReturnValue("mock-signature") } },
         { provide: DataSource, useValue: dataSource },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue("mock_key_id_dev") } },
         { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();
@@ -74,6 +73,18 @@ describe("PaymentsService", () => {
       expect(result.payment.status).toBe(PaymentStatus.CREATED);
       expect(result.payment.gatewayOrderId).toBe("mock_order_1");
       expect(result.gatewayKeyId).toBe("mock_key_id_dev");
+    });
+
+    it("gatewayKeyId always reflects whichever gateway is actually active, never a separate config lookup", async () => {
+      // Regression test: this exact mismatch shipped once for real -- a real Razorpay order got
+      // created (gateway.createOrder), but gatewayKeyId still came from a different config key
+      // than the one the active gateway was constructed with, so the frontend never opened the
+      // real checkout widget. gatewayKeyId must come from gateway.clientKey, not its own lookup.
+      gateway.clientKey = "rzp_test_realKeyFromRazorpay";
+
+      const result = await service.initiate("o1", "u1");
+
+      expect(result.gatewayKeyId).toBe("rzp_test_realKeyFromRazorpay");
     });
   });
 
